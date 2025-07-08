@@ -32,7 +32,7 @@ const home = () => {
   };
   return (
     <SafeAreaView>
-      <Text>home</Text>
+      <Text>This is Home</Text>
       <Button title='Logout' onPress={()=>{
         signOut();
       }} />
