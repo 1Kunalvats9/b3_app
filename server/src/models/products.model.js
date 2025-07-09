@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+
 const productSchema = new mongoose.Schema(
     {
         id: {
@@ -10,18 +11,43 @@ const productSchema = new mongoose.Schema(
             type: String,
             required: true
         },
-        description:{
-            type:String,
+        description: {
+            type: String,
+            required: true
         },
-        price:{
-            type:Number
+        originalPrice: {
+            type: Number,
+            required: true
         },
-        category:{
-            type:String,
+        discountedPrice: {
+            type: Number,
+            required: true
         },
-        image_url:{
-            type:String,
-            default:""
+        category: {
+            type: String,
+            required: true
+        },
+        image_url: {
+            type: String,
+            default: ""
+        },
+        stock: {
+            type: Number,
+            required: true,
+            default: 0
+        },
+        isOpen: {
+            type: Boolean,
+            default: false // true for products sold by weight (kg/grams)
+        },
+        unit: {
+            type: String,
+            enum: ['piece', 'kg', 'gram', 'liter', 'ml'],
+            default: 'piece'
+        },
+        isActive: {
+            type: Boolean,
+            default: true
         }
     },
     { timestamps: true }

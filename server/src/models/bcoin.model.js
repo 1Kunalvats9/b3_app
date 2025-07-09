@@ -1,25 +1,39 @@
 import mongoose from 'mongoose';
+
 const bcoinSchema = new mongoose.Schema({
-    id:{
-        type:String,
-        unique:true
+    id: {
+        type: String,
+        unique: true,
+        required: true
     },
-    user_id:{
-        type:String,
-        unique:true
+    user_id: {
+        type: String,
+        required: true
     },
-    order_id:{
-        type:String,
+    order_id: {
+        type: String,
+        required: true
     },
-    amount_spend:{
-        type:Number,
+    amount_spend: {
+        type: Number,
+        required: true
     },
-    bcoins_earned:{
-        type:Number,
+    bcoins_earned: {
+        type: Number,
+        required: true
     },
-    createdAt:{
-        type:Date,
+    transaction_type: {
+        type: String,
+        enum: ['earned', 'redeemed'],
+        default: 'earned'
     },
-},{
-    timestamps:true
-})
+    description: {
+        type: String,
+        default: ''
+    }
+}, {
+    timestamps: true
+});
+
+const Bcoins = mongoose.model('Bcoins', bcoinSchema);
+export default Bcoins;
