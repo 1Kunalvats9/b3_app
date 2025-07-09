@@ -78,7 +78,7 @@ export const useProducts = create<ProductState>((set, get) => ({
         set({
           products: response.data.data,
           pagination: response.data.pagination,
-          queryParams: mergedParams, // Update queryParams in state to reflect what was fetched
+          queryParams: mergedParams,
           loading: false,
         });
       } else {

@@ -8,8 +8,9 @@ const router = express.Router();
 // Get all categories (public route)
 router.get('/', async (req, res) => {
     try {
+        console.log("getting all the categories");
         const categories = await Categories.find().sort({ name: 1 });
-        
+        console.log('categories done sending now')
         res.json({
             success: true,
             data: categories
