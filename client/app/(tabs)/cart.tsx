@@ -8,10 +8,12 @@ import initiateUpiPayment from "../../utils/upiPayment";
 import SuccessModal from '@/components/SuccessModal';
 import CustomAlert from '@/components/CustomAlert';
 import CustomToast from '@/components/CustomToast';
+import { useAuth } from '@clerk/clerk-expo'; // <--- IMPORT THIS HOOK
 
 const Cart = () => {
   const { items, totalItems, totalAmount, removeFromCart, updateQuantity, clearCart } = useCart();
-  const { createOrder, isLoading: isPlacingOrderAPI } = useOrders(); // Use the new hook
+  const { createOrder, isLoading: isPlacingOrderAPI } = useOrders();
+  const { getToken } = useAuth(); // <--- GET THE getToken FUNCTION
 
   const [address, setAddress] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -21,7 +23,7 @@ const Cart = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
   const [coinsEarned, setCoinsEarned] = useState(0);
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false); // Combined loading state
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -137,11 +139,11 @@ const Cart = () => {
     }
 
     const orderTotal = calculateTotalWithDelivery();
-    const bcoins_got = orderTotal/100
+    const bcoins_got = orderTotal / 100
 
     const orderData = {
       items: items.map(item => ({
-        _id: item.id,
+        product_id: item.id, // This was already correctly changed
         name: item.name,
         price: item.price,
         quantity: item.quantity,
@@ -149,14 +151,18 @@ const Cart = () => {
         image: item.image_url,
       })),
       deliveryOption,
-      paymentOption,
-      address: deliveryOption === 'delivery' ? address : 'Store Pickup',
+      paymentOption: paymentOption === 'cod' ? 'cash_on_delivery' : 'online',
+      address: deliveryOption === 'delivery' ? address : 'takeaway',
       phoneNumber,
     };
-
-    setIsPlacingOrder(true); 
+    setIsPlacingOrder(true);
 
     try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error("Authentication required. Please log in.");
+      }
+
       if (paymentOption === 'online') {
         const paymentSuccess = await initiateUpiPayment(orderTotal);
         if (!paymentSuccess) {
@@ -165,8 +171,8 @@ const Cart = () => {
           return;
         }
       }
-
-      const response = await createOrder(orderData);
+      //@ts-ignore
+      const response = await createOrder(orderData, token); // <--- PASS THE TOKEN HERE
 
       if (!response.success) {
         throw new Error(response.message || 'Failed to place order.');

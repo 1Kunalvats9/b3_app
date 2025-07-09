@@ -26,6 +26,14 @@ const _layout = () => {
             tabBarActiveTintColor:'#16a34a'
           }} 
         />
+        <Tabs.Screen
+                name='admin'
+                options={{
+                    title: 'Admin',
+                    tabBarIcon: ({ color, size }) => <Feather size={size} color={color} name='settings' />,
+                    href: isAdmin ? '/(tabs)/admin' : null,
+                }}
+            />
         <Tabs.Screen 
           name='cart' 
           options={{
@@ -36,14 +44,15 @@ const _layout = () => {
             tabBarActiveTintColor:'#16a34a'
           }} 
         />
-        <Tabs.Screen
-                name='admin'
-                options={{
-                    title: 'Admin',
-                    tabBarIcon: ({ color, size }) => <Feather size={size} color={color} name='settings' />,
-                    href: isAdmin ? '/(tabs)/admin' : null,
-                }}
-            />
+        <Tabs.Screen 
+          name='profile' 
+          options={{
+            headerShown: false,
+            title: 'Profile',
+            tabBarIcon: ({ color, size }) => <Feather size={size} color={color} name='user' />,
+            tabBarActiveTintColor:'#16a34a'
+          }} 
+        />
     </Tabs>
   )
 }

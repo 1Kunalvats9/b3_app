@@ -26,6 +26,7 @@ const requireAdmin = (req, res, next) => {
 // Get user's orders
 router.get('/my-orders', async (req, res) => {
     try {
+        console.log("getting alll your orders")
         const { userId } = req.auth;
         const { page = 1, limit = 10, status } = req.query;
         
@@ -98,7 +99,6 @@ router.get('/:id', async (req, res) => {
 // Create new order
 router.post('/create-order', async (req, res) => {
     try {
-        console.log('order creation started')
         const { userId } = req.auth;
         const {
             items,
@@ -210,7 +210,6 @@ router.post('/create-order', async (req, res) => {
                 
                 await bcoinRecord.save();
                 
-                // Update user's total bcoins
                 await Users.findOneAndUpdate(
                     { clerk_id: userId },
                     { $inc: { total_bcoins: bcoinsEarned } }
