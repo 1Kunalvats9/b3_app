@@ -7,13 +7,16 @@ import { useCart } from '@/hooks/useCart';
 import { Feather } from '@expo/vector-icons';
 import CategoryScroll from '@/components/CategoryScroll';
 import ProductCard from '@/components/ProductCard';
+import { useNavigation } from '@react-navigation/native';
+import { Redirect } from 'expo-router';
 const home = () => {
   const { products, loading, fetchProducts, pagination } = useProducts();
   const { totalItems } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-
+  const navigation = useNavigation<any>();
+  
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchProducts({
@@ -64,6 +67,7 @@ const home = () => {
         <TouchableOpacity
           className="relative p-2"
           activeOpacity={0.7}
+          onPress={() => navigation.navigate('cart')}
         >
           <Feather name="shopping-cart" size={24} color="#374151" />
           {totalItems > 0 && (

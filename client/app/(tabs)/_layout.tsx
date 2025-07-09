@@ -23,7 +23,6 @@ const _layout = () => {
             headerShown: false,
             title: 'Home',
             tabBarIcon: ({ color, size }) => <Feather size={size} color={color} name='home' />,
-            tabBarBadge: totalItems > 0 ? (totalItems > 99 ? '99+' : totalItems.toString()) : undefined,
           }} 
         />
         <Tabs.Screen 

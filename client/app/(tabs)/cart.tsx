@@ -231,7 +231,7 @@ const Cart = () => {
 
         <TouchableOpacity
           onPress={() => handleRemoveItem(item.id)}
-          className="p-3 bg-red-50 rounded-xl"
+          className="flex items-center justify-center p-3 h-14 bg-red-50 rounded-xl "
         >
           <Feather name="trash-2" size={20} color="#EF4444" />
         </TouchableOpacity>
