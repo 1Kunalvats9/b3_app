@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
-import { Video } from 'expo-av';
+import { View, Text, ActivityIndicator } from 'react-native'; // Import ActivityIndicator
 
 interface LoadingAnimationProps {
   message?: string;
@@ -10,17 +9,9 @@ const LoadingAnimation: React.FC<LoadingAnimationProps> = ({
   message = "Loading products..." 
 }) => {
   return (
-    <View className="flex-1 items-center justify-center py-8">
-      <Video
-        source={require('../assets/anims/loadingHand.webm')}
-        style={{ width: 120, height: 120 }}
-        shouldPlay
-        isLooping
-        resizeMode="contain"
-      />
-      <Text className="mt-4 text-gray-600 text-base font-medium">
-        {message}
-      </Text>
+    <View className="items-center justify-center flex-1 py-8">
+      {/* Replaced VideoView with ActivityIndicator */}
+      <ActivityIndicator size="large" color="#6B46C1" /> {/* Example color: purple-600 */}
     </View>
   );
 };

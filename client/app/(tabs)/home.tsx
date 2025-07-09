@@ -16,12 +16,10 @@ const home = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch products on component mount
   useEffect(() => {
     fetchProducts();
   }, []);
 
-  // Handle search with debounce
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchProducts({
@@ -72,7 +70,7 @@ const home = () => {
         <TextInput 
           placeholder='Search for products' 
           placeholderTextColor={"#9ca3af"} 
-          className='flex-1 text-black text-base' 
+          className='flex-1 text-base text-black' 
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -90,7 +88,7 @@ const home = () => {
       />
 
       {/* Results Header */}
-      <View className="px-4 py-3 flex-row items-center justify-between">
+      <View className="flex-row items-center justify-between px-4 py-3">
         <Text className="text-lg font-bold text-gray-800">
           {selectedCategory ? `${selectedCategory} Products` : 'All Products'}
         </Text>
@@ -119,12 +117,12 @@ const home = () => {
     }
 
     return (
-      <View className="flex-1 items-center justify-center py-8">
+      <View className="items-center justify-center flex-1 py-8">
         <Feather name="search" size={64} color="#D1D5DB" />
-        <Text className="text-gray-500 text-lg font-medium mt-4">
+        <Text className="mt-4 text-lg font-medium text-gray-500">
           No products found
         </Text>
-        <Text className="text-gray-400 text-sm mt-2 text-center px-8">
+        <Text className="px-8 mt-2 text-sm text-center text-gray-400">
           {searchQuery 
             ? `No results for "${searchQuery}"`
             : selectedCategory 
@@ -148,7 +146,7 @@ const home = () => {
           <Feather name="shopping-cart" size={24} color="#374151" />
           {totalItems > 0 && (
             <View className="absolute -top-1 -right-1 bg-green-500 rounded-full min-w-[20px] h-5 items-center justify-center">
-              <Text className="text-white text-xs font-bold">
+              <Text className="text-xs font-bold text-white">
                 {totalItems > 99 ? '99+' : totalItems}
               </Text>
             </View>
