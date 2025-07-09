@@ -26,6 +26,15 @@ const _layout = () => {
             tabBarBadge: totalItems > 0 ? (totalItems > 99 ? '99+' : totalItems.toString()) : undefined,
           }} 
         />
+        <Tabs.Screen 
+          name='cart' 
+          options={{
+            headerShown: false,
+            title: 'Cart',
+            tabBarIcon: ({ color, size }) => <Feather size={size} color={color} name='shopping-cart' />,
+            tabBarBadge: totalItems > 0 ? (totalItems > 99 ? '99+' : totalItems.toString()) : undefined,
+          }} 
+        />
         <Tabs.Screen
                 name='admin'
                 options={{

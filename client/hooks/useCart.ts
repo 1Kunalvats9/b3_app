@@ -37,14 +37,12 @@ export const useCart = create<CartState>()(
 
         let newItems;
         if (existingItemIndex >= 0) {
-          // Update existing item
           newItems = items.map((item, index) =>
             index === existingItemIndex
               ? { ...item, quantity: item.quantity + quantity }
               : item
           );
         } else {
-          // Add new item
           const newItem: CartItem = {
             id: product.id,
             name: product.name,

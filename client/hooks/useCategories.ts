@@ -10,10 +10,10 @@ interface Category {
 
 interface CategoryState {
     categories: Category[];
-    getCategories: () => Promise<void>;
-    setCategory: () => Promise<void>; 
     loading: boolean;
     error: string | null;
+    getCategories: (forceRefresh?: boolean) => Promise<void>; 
+    setCategory: () => Promise<void>; 
 }
 
 const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:3000';
@@ -23,14 +23,28 @@ export const useCategory = create<CategoryState>((set, get) => ({
     loading: false,
     error: null,
 
-    getCategories: async () => {
+    /**
+     * - If categories are already loaded, it won't re-fetch unless forceRefresh is true.
+     * @param forceRefresh Optional boolean to force a re-fetch, bypassing the cache.
+     */
+    getCategories: async (forceRefresh = false) => {
+        if (get().categories.length > 0 && !forceRefresh && !get().loading) {
+            console.log("Categories already loaded, skipping fetch.");
+            return;
+        }
+
         set({ loading: true, error: null });
         try {
-            const response = await axios.get(`${BACKEND_BASE_URL}/api/categories`);
+            const response = await axios.get(`${BACKEND_BASE_URL}/api/categories/own-categories`);
 
             if (response.data.success) {
+                const fetchedCategories: Category[] = response.data.data.map((name: string, index: number) => ({
+                    id: name, 
+                    name: name,
+                }));
+
                 set({
-                    categories: response.data.data,
+                    categories: fetchedCategories,
                     loading: false,
                 });
             } else {
@@ -47,7 +61,6 @@ export const useCategory = create<CategoryState>((set, get) => ({
             });
         }
     },
-
     setCategory: async () => {
         set({ loading: true, error: null });
         try {

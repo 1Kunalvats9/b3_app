@@ -1,6 +1,7 @@
 import express from 'express';
 import { requireAuth } from '@clerk/express';
 import Categories from '../models/categories.model.js';
+import Products from "../models/products.model.js"
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
@@ -16,6 +17,27 @@ router.get('/', async (req, res) => {
             data: categories
         });
     } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching categories',
+            error: error.message
+        });
+    }
+});
+
+router.get('/own-categories', async (req, res) => {
+    try {
+        console.log("Getting all unique categories");
+        
+        const uniqueCategories = await Products.distinct('category');
+        
+        console.log('Unique categories fetched, sending now');
+        res.json({
+            success: true,
+            data: uniqueCategories
+        });
+    } catch (error) {
+        console.error('Error fetching categories:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching categories',

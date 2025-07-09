@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import React, { useEffect } from 'react';
-import { useCategory } from '@/hooks/useCategories';
-import { useProducts } from '@/hooks/useProducts';
+import { useCategory } from '@/hooks/useCategories'; 
+import { useProducts } from '@/hooks/useProducts'; 
 import { Feather } from '@expo/vector-icons';
 
 interface CategoryScrollProps {
@@ -11,10 +11,9 @@ interface CategoryScrollProps {
 
 const CategoryScroll: React.FC<CategoryScrollProps> = ({ selectedCategory, onCategorySelect }) => {
     const { categories, loading, getCategories } = useCategory();
-    const { loading: productsLoading } = useProducts();
-
+    const { loading: productsLoading } = useProducts(); 
     useEffect(() => {
-        getCategories();
+        getCategories(); 
     }, [getCategories]);
 
     if (loading) {
@@ -26,6 +25,8 @@ const CategoryScroll: React.FC<CategoryScrollProps> = ({ selectedCategory, onCat
         );
     }
 
+    // --- Empty Categories State ---
+    // Show message if no categories are found after loading
     if (categories.length === 0) {
         return (
             <View className="items-center justify-center py-4">
@@ -34,6 +35,7 @@ const CategoryScroll: React.FC<CategoryScrollProps> = ({ selectedCategory, onCat
         );
     }
 
+    // --- Render Categories ---
     return (
         <View className="mt-4 bg-transparent">
             <ScrollView
@@ -42,7 +44,7 @@ const CategoryScroll: React.FC<CategoryScrollProps> = ({ selectedCategory, onCat
                 contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
                 className="flex-grow-0"
             >
-                {/* All Products Button */}
+                {/* "All" Category Button */}
                 <TouchableOpacity
                     onPress={() => onCategorySelect(null)}
                     activeOpacity={0.7}
@@ -67,9 +69,10 @@ const CategoryScroll: React.FC<CategoryScrollProps> = ({ selectedCategory, onCat
                     </Text>
                 </TouchableOpacity>
 
+                {/* Dynamically Render Fetched Categories */}
                 {categories.map((category) => (
                     <TouchableOpacity
-                        key={category.id}
+                        key={category.id} // Ensure category.id is unique (e.g., if you mapped name to id)
                         onPress={() => onCategorySelect(category.name)}
                         activeOpacity={0.7}
                         className={`px-4 py-2 mr-3 rounded-full border min-w-[70px] h-10 items-center justify-center ${

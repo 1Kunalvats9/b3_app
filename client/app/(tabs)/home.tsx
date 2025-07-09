@@ -7,7 +7,6 @@ import { useCart } from '@/hooks/useCart';
 import { Feather } from '@expo/vector-icons';
 import CategoryScroll from '@/components/CategoryScroll';
 import ProductCard from '@/components/ProductCard';
-import LoadingAnimation from '@/components/LoadingAnimation';
 const home = () => {
   const { signOut } = useAuth();
   const { products, loading, fetchProducts, pagination } = useProducts();
@@ -15,10 +14,6 @@ const home = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -30,7 +25,7 @@ const home = () => {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, selectedCategory]);
+  }, [selectedCategory]);
 
   const handleCategorySelect = (category: string | null) => {
     setSelectedCategory(category);
@@ -44,7 +39,7 @@ const home = () => {
       page: 1
     });
     setRefreshing(false);
-  }, [searchQuery, selectedCategory]);
+  }, [selectedCategory]);
 
   const handleLoadMore = () => {
     if (!loading && pagination?.hasNext) {
@@ -62,84 +57,12 @@ const home = () => {
     </View>
   );
 
-  const renderHeader = () => (
-    <>
-      {/* Search Bar */}
-      <View className='flex flex-row items-center w-full gap-2 px-4 py-3 mx-4 mb-2 border border-gray-200 rounded-full bg-gray-50'>
-        <Feather name='search' size={20} color='#9ca3af' />
-        <TextInput 
-          placeholder='Search for products' 
-          placeholderTextColor={"#9ca3af"} 
-          className='flex-1 text-base text-black' 
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery("")}>
-            <Feather name='x' size={20} color='#9ca3af' />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Category Scroll */}
-      <CategoryScroll 
-        selectedCategory={selectedCategory}
-        onCategorySelect={handleCategorySelect}
-      />
-
-      {/* Results Header */}
-      <View className="flex-row items-center justify-between px-4 py-3">
-        <Text className="text-lg font-bold text-gray-800">
-          {selectedCategory ? `${selectedCategory} Products` : 'All Products'}
-        </Text>
-        {pagination && (
-          <Text className="text-sm text-gray-500">
-            {pagination.totalItems} items
-          </Text>
-        )}
-      </View>
-    </>
-  );
-
-  const renderFooter = () => {
-    if (!loading || products.length === 0) return null;
-    
-    return (
-      <View className="py-4">
-        <LoadingAnimation message="Loading more products..." />
-      </View>
-    );
-  };
-
-  const renderEmpty = () => {
-    if (loading && products.length === 0) {
-      return <LoadingAnimation />;
-    }
-
-    return (
-      <View className="items-center justify-center flex-1 py-8">
-        <Feather name="search" size={64} color="#D1D5DB" />
-        <Text className="mt-4 text-lg font-medium text-gray-500">
-          No products found
-        </Text>
-        <Text className="px-8 mt-2 text-sm text-center text-gray-400">
-          {searchQuery 
-            ? `No results for "${searchQuery}"`
-            : selectedCategory 
-              ? `No products in ${selectedCategory} category`
-              : "No products available"
-          }
-        </Text>
-      </View>
-    );
-  };
-
   return (
     <SafeAreaView className='flex-1 bg-gray-50'>
       {/* Header with Cart */}
       <View className="flex-row items-center justify-between px-4 py-2 bg-white border-b border-gray-100">
-        <Text className="text-xl font-bold text-gray-800">Fresh Market</Text>
-        <TouchableOpacity 
+        <Text className="text-xl font-bold text-gray-800">B3</Text>
+        <TouchableOpacity
           className="relative p-2"
           activeOpacity={0.7}
         >
@@ -153,6 +76,28 @@ const home = () => {
           )}
         </TouchableOpacity>
       </View>
+      <View className='flex items-center px-2 mt-4'>
+        <View className='flex flex-row items-center w-full gap-2 px-4 py-2 border border-gray-200 rounded-full bg-gray-50'>
+          <Feather name='search' size={20} color='#9ca3af' />
+          <TextInput
+            placeholder='Search for products'
+            placeholderTextColor={"#9ca3af"}
+            className='flex-1 text-black'
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery("")}>
+              <Feather name='x' size={20} color='#9ca3af' />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      <CategoryScroll
+        selectedCategory={selectedCategory}
+        onCategorySelect={handleCategorySelect}
+      />
 
       <FlatList
         data={products}
@@ -160,9 +105,6 @@ const home = () => {
         keyExtractor={(item) => item.id}
         numColumns={2}
         columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 16 }}
-        ListHeaderComponent={renderHeader}
-        ListFooterComponent={renderFooter}
-        ListEmptyComponent={renderEmpty}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -174,9 +116,10 @@ const home = () => {
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.1}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ 
+        contentContainerStyle={{
           flexGrow: 1,
-          paddingBottom: 20
+          paddingBottom: 20,
+          marginTop:6,
         }}
       />
     </SafeAreaView>
