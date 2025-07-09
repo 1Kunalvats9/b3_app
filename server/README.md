@@ -8,7 +8,6 @@ A Node.js/Express backend server for an e-commerce application with Clerk authen
 - **Products Management**: CRUD operations for products with categories, pricing, and stock management
 - **Order Management**: Complete order processing with status tracking
 - **User Management**: User profiles, addresses, and bcoin rewards system
-- **Image Upload**: Cloudinary integration for product images
 - **Database**: MongoDB with Mongoose ODM
 
 ## Tech Stack
@@ -17,8 +16,6 @@ A Node.js/Express backend server for an e-commerce application with Clerk authen
 - **Framework**: Express.js
 - **Database**: MongoDB with Mongoose
 - **Authentication**: Clerk
-- **Image Storage**: Cloudinary
-- **File Upload**: Multer
 
 ## Project Structure
 
@@ -36,13 +33,11 @@ server/
 │   │   ├── categories.routes.js
 │   │   ├── orders.routes.js
 │   │   ├── users.routes.js
-│   │   ├── upload.routes.js
 │   │   └── index.js
 │   ├── middleware/       # Custom middleware
 │   │   └── errorHandler.js
 │   ├── utils/           # Utility functions
 │   │   ├── connectDb.js
-│   │   └── cloudinary.js
 │   └── server.js        # Main server file
 ├── package.json
 └── README.md
@@ -67,9 +62,6 @@ CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 CLERK_SECRET_KEY=your_clerk_secret_key
 PORT=3000
 CLIENT_URL=http://localhost:8081
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
 ```
 
 ## Running the Server
@@ -110,8 +102,6 @@ The server will start on `http://localhost:3000`
 - `DELETE /api/categories/:id` - Delete category
 - `GET /api/orders` - Get all orders
 - `PATCH /api/orders/:id/status` - Update order status
-- `POST /api/upload/image` - Upload image
-- `DELETE /api/upload/image/:publicId` - Delete image
 
 ## Database Models
 
@@ -172,11 +162,18 @@ The server will start on `http://localhost:3000`
 - Bcoin redemption for discounts
 - Transaction history tracking
 
-### Image Management
-- Cloudinary integration
-- Automatic image optimization
-- Upload and delete operations
-- Admin-only access
+### 5. **Image Management**
+- Products store image URLs directly
+- Client-side image upload handling
+- Support for external image URLs
+
+### 6. **Error Handling & Middleware**
+- Centralized error handling
+- Request size limits
+
+### 7. **Additional Utilities**
+- Database connection utility
+- Environment variables setup
 
 ## Error Handling
 - Centralized error handling middleware
