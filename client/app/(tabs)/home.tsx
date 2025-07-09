@@ -8,7 +8,6 @@ import { Feather } from '@expo/vector-icons';
 import CategoryScroll from '@/components/CategoryScroll';
 import ProductCard from '@/components/ProductCard';
 const home = () => {
-  const { signOut } = useAuth();
   const { products, loading, fetchProducts, pagination } = useProducts();
   const { totalItems } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
