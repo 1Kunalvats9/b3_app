@@ -1,12 +1,12 @@
 // src/utils/upiPayment.js
 import { Linking, Alert } from 'react-native'; 
 
-const initiateUpiPayment = async (amount, productName) => {
+const initiateUpiPayment = async (amount) => {
   const vpa = '7878117101@ptyes'; 
 
   const payeeName = 'B3 Store'; 
   const transactionRef = `B3STORE_TXN_${Date.now()}`; 
-  const transactionNote = `Payment for ${productName}`;
+  const transactionNote = `Payment for Shopping Items`;
   const amountString = amount.toFixed(2);
   const upiUrl = `upi://pay?pa=${vpa}&pn=${encodeURIComponent(payeeName)}&mc=0000&tid=${transactionRef}&tr=${transactionRef}&tn=${encodeURIComponent(transactionNote)}&am=${amountString}&cu=INR`;
 

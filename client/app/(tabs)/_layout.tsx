@@ -23,6 +23,7 @@ const _layout = () => {
             headerShown: false,
             title: 'Home',
             tabBarIcon: ({ color, size }) => <Feather size={size} color={color} name='home' />,
+            tabBarActiveTintColor:'#16a34a'
           }} 
         />
         <Tabs.Screen 
@@ -32,6 +33,7 @@ const _layout = () => {
             title: 'Cart',
             tabBarIcon: ({ color, size }) => <Feather size={size} color={color} name='shopping-cart' />,
             tabBarBadge: totalItems > 0 ? (totalItems > 99 ? '99+' : totalItems.toString()) : undefined,
+            tabBarActiveTintColor:'#16a34a'
           }} 
         />
         <Tabs.Screen

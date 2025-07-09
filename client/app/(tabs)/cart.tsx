@@ -3,14 +3,15 @@ import { View, Text, FlatList, TouchableOpacity, Image, TextInput, ScrollView, A
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useCart, CartItem } from '@/hooks/useCart';
+import { useOrders } from '@/hooks/useOrder';
 import initiateUpiPayment from "../../utils/upiPayment";
 import SuccessModal from '@/components/SuccessModal';
 import CustomAlert from '@/components/CustomAlert';
 import CustomToast from '@/components/CustomToast';
-//@ts-ignore
 
 const Cart = () => {
   const { items, totalItems, totalAmount, removeFromCart, updateQuantity, clearCart } = useCart();
+  const { createOrder, isLoading: isPlacingOrderAPI } = useOrders(); // Use the new hook
 
   const [address, setAddress] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -20,7 +21,7 @@ const Cart = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
   const [coinsEarned, setCoinsEarned] = useState(0);
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false); // Combined loading state
 
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -136,6 +137,7 @@ const Cart = () => {
     }
 
     const orderTotal = calculateTotalWithDelivery();
+    const bcoins_got = orderTotal/100
 
     const orderData = {
       items: items.map(item => ({
@@ -146,41 +148,39 @@ const Cart = () => {
         category: item.category,
         image: item.image_url,
       })),
-      total: orderTotal,
       deliveryOption,
       paymentOption,
       address: deliveryOption === 'delivery' ? address : 'Store Pickup',
       phoneNumber,
     };
 
-    console.log('Preparing to place order with data:', orderData);
-    setIsPlacingOrder(true);
+    setIsPlacingOrder(true); 
 
     try {
       if (paymentOption === 'online') {
-        const paymentSuccess = await initiateUpiPayment(orderTotal, "Your Order Payment");
+        const paymentSuccess = await initiateUpiPayment(orderTotal);
         if (!paymentSuccess) {
           setIsPlacingOrder(false);
+          showToast('Payment was not completed. Please try again.', 'error');
           return;
         }
       }
 
-      // Simulate order creation and user data refresh
-      // In a real application, you would call your backend API here
-      const simulatedOrderResponse = {
-        _id: `ORDER${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        coinsEarned: calculateCoinsToEarn(),
-      };
+      const response = await createOrder(orderData);
 
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to place order.');
+      }
       clearCart();
 
-      const orderNum = simulatedOrderResponse._id ? simulatedOrderResponse._id.slice(-6).toUpperCase() : 'UNKNOWN';
-      const earned = simulatedOrderResponse.coinsEarned || calculateCoinsToEarn();
+      const orderNum = response.data?.id ? response.data.id.slice(-6).toUpperCase() : 'UNKNOWN';
+      const earnedCoins = calculateCoinsToEarn();
 
       setOrderNumber(orderNum);
-      setCoinsEarned(earned);
+      setCoinsEarned(earnedCoins);
       setShowSuccessModal(true);
 
+      // Reset form states
       setAddress('');
       setPhoneNumber('');
       setDeliveryOption('delivery');
@@ -196,7 +196,7 @@ const Cart = () => {
         [{ text: 'OK', onPress: () => { } }]
       );
     } finally {
-      setIsPlacingOrder(false);
+      setIsPlacingOrder(false); // Stop loading indicator
     }
   };
 
@@ -250,7 +250,7 @@ const Cart = () => {
           </Text>
           <TouchableOpacity
             onPress={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-            className="items-center justify-center w-10 h-10 bg-white rounded-lg shadow-sm"
+            className="items-center justify-center w-10 h-10 bg-white rounded-lg shadow-sm "
           >
             <Feather name="plus" size={16} color="#374151" />
           </TouchableOpacity>
@@ -264,9 +264,6 @@ const Cart = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-      {/* Header component is assumed to be available, if not, you'll need to define it or remove this line */}
-      {/* <Header title="Shopping Cart" showProfile={false} /> */} 
-
       {items.length > 0 ? (
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
           <View className="flex-row items-center justify-between px-4 py-4 bg-white border-b border-gray-100">
@@ -306,7 +303,7 @@ const Cart = () => {
 
             <View className="mb-6">
               <Text className="mb-4 text-base font-semibold text-gray-700">Delivery Option</Text>
-              <View className="flex-row space-x-4">
+              <View className="flex-row gap-3 space-x-4">
                 <TouchableOpacity
                   onPress={() => setDeliveryOption('delivery')}
                   className={`flex-1 flex-row items-center justify-center py-4 px-4 rounded-xl border-2 ${
@@ -350,7 +347,7 @@ const Cart = () => {
 
             <View className="mb-6">
               <Text className="mb-4 text-base font-semibold text-gray-700">Payment Method</Text>
-              <View className="flex-row space-x-4">
+              <View className="flex-row gap-3 space-x-4">
                 <TouchableOpacity
                   onPress={() => setPaymentOption('online')}
                   className={`flex-1 flex-row items-center justify-center py-4 px-4 rounded-xl border-2 ${
@@ -413,12 +410,12 @@ const Cart = () => {
           <View className="px-4 pb-8">
             <TouchableOpacity
               onPress={handleCheckout}
-              disabled={isPlacingOrder}
+              disabled={isPlacingOrder || isPlacingOrderAPI} // Disable if either local or API call is in progress
               className={`rounded-2xl py-5 items-center shadow-lg ${
-                isPlacingOrder ? 'bg-gray-400' : 'bg-purple-500'
+                (isPlacingOrder || isPlacingOrderAPI) ? 'bg-gray-400' : 'bg-purple-500'
               }`}
             >
-              {isPlacingOrder ? (
+              {(isPlacingOrder || isPlacingOrderAPI) ? (
                 <View className="flex-row items-center">
                   <ActivityIndicator size="small" color="#FFFFFF" />
                   <Text className="ml-3 text-lg font-bold text-white">

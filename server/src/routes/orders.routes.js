@@ -96,8 +96,9 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create new order
-router.post('/', async (req, res) => {
+router.post('/create-order', async (req, res) => {
     try {
+        console.log('order creation started')
         const { userId } = req.auth;
         const {
             items,
