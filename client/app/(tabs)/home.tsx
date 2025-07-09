@@ -1,40 +1,40 @@
-import { Alert, Button, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, Button, FlatList, StyleSheet, Text, View } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Redirect } from 'expo-router';
 import { useAuth } from '@clerk/clerk-expo';
+import { useProducts } from '@/hooks/useProducts';
 const home = () => {
 
   const {signOut} = useAuth();
-  const [isLoading, setIsLoading] = useState(false)
-  const handleSignOut = async () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out of your account?',
-      [
-        { text: 'Cancel', style: 'cancel', onPress: () => {} },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            setIsLoading(true);
-            try {
-              await signOut();
-            } catch (error) {
-              console.log("error",error)
-            } finally {
-              setIsLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  };
+  const {products,loading,fetchProducts} = useProducts();
+
   return (
     <SafeAreaView>
       <Text>This is Home</Text>
       <Button title='Logout' onPress={()=>{
         signOut();
+      }} />
+
+      {
+        products && (
+          <FlatList 
+          data={products}
+          keyExtractor={products=>products._id}
+          renderItem={({ item }) => <Text>{item.name}</Text>}
+          />
+        )
+      }
+      {
+        loading && <ActivityIndicator size={'small'} color={"#000"} />
+      }
+      {
+        products.length==0 && (
+          <Text>No products available</Text>
+        )
+      }
+      <Button title='Get Products' onPress={()=>{
+        fetchProducts();
       }} />
     </SafeAreaView>
   );

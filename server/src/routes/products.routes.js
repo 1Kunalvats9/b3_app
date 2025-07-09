@@ -10,7 +10,8 @@ const router = express.Router();
 router.get('/', async (req, res) => {
     try {
         const { category, search, page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
-        
+    
+        console.log('fetching products')
         const query = { isActive: true };
         
         if (category) {
@@ -33,6 +34,7 @@ router.get('/', async (req, res) => {
             .skip(skip)
             .limit(parseInt(limit));
             
+        console.log('done products')
         const total = await Products.countDocuments(query);
         
         res.json({
@@ -79,11 +81,8 @@ router.get('/:id', async (req, res) => {
         });
     }
 });
-
-// Admin routes - require authentication and admin role
 router.use(requireAuth());
 
-// Middleware to check admin role
 const requireAdmin = (req, res, next) => {
     const { sessionClaims } = req.auth;
     if (sessionClaims?.metadata?.role !== 'admin') {
@@ -141,7 +140,6 @@ router.post('/', requireAdmin, async (req, res) => {
     }
 });
 
-// Update product (Admin only)
 router.put('/:id', requireAdmin, async (req, res) => {
     try {
         const updatedProduct = await Products.findOneAndUpdate(
