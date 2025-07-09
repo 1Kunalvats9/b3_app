@@ -16,7 +16,7 @@ interface CategoryState {
     error: string | null;
 }
 
-const BACKEND_BASE_URL = process.env.BACKEND_BASE_URL || 'http://localhost:3000';
+const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:3000';
 
 export const useCategory = create<CategoryState>((set, get) => ({
     categories: [],

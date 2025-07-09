@@ -46,7 +46,7 @@ interface ProductState {
   setQueryParams: (params: Partial<ProductQueryParams>) => void;
 }
 
-const BACKEND_BASE_URL = process.env.BACKEND_BASE_URL || 'http://localhost:3000'; // Fallback for development
+const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:3000';
 
 export const useProducts = create<ProductState>((set, get) => ({
   products: [],
@@ -68,6 +68,12 @@ export const useProducts = create<ProductState>((set, get) => ({
     set({ loading: true, error: null }); 
     const currentQueryParams = get().queryParams;
     const mergedParams = { ...currentQueryParams, ...params };
+    
+    // If it's a new search/category, reset to page 1 and clear existing products
+    const isNewQuery = params?.search !== undefined || params?.category !== undefined;
+    if (isNewQuery && params?.page === 1) {
+      set({ products: [] });
+    }
 
     try {
       const response = await axios.get(`${BACKEND_BASE_URL}/api/products`, {
@@ -75,8 +81,16 @@ export const useProducts = create<ProductState>((set, get) => ({
       });
 
       if (response.data.success) {
+        const newProducts = response.data.data;
+        const existingProducts = get().products;
+        
+        // If it's page 1 or a new query, replace products; otherwise append
+        const finalProducts = (mergedParams.page === 1 || isNewQuery) 
+          ? newProducts 
+          : [...existingProducts, ...newProducts];
+        
         set({
-          products: response.data.data,
+          products: finalProducts,
           pagination: response.data.pagination,
           queryParams: mergedParams,
           loading: false,
