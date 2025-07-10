@@ -4,32 +4,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth, useUser as useClerkUser } from '@clerk/clerk-expo';
 import { Feather } from '@expo/vector-icons';
 import { Redirect } from 'expo-router';
-
-// Import necessary components (ensure these paths are correct in your project)
 import CustomAlert from '@/components/CustomAlert';
 import CustomToast from '@/components/CustomToast';
 
-// NO import for useProfile anymore
-
 const Profile = () => {
   const { signOut, isSignedIn, getToken } = useAuth();
-  const { user: clerkUser } = useClerkUser(); // Get user details directly from Clerk
-
-  // --- Local States replacing useProfile hook data ---
-  const [userData, setUserData] = useState({ total_bcoins: 0 }); // Dummy for bcoins
-  const [orders, setOrders] = useState<any[]>([]); // Dummy for orders
-  const [isOrdersLoading, setIsOrdersLoading] = useState(false); // Dummy loading state
-  const [ordersError, setOrdersError] = useState<string | null>(null); // Dummy error state
-  const [ordersPagination, setOrdersPagination] = useState({ // Dummy pagination
+  const { user: clerkUser } = useClerkUser();
+  const [userData, setUserData] = useState({ total_bcoins: 0 }); 
+  const [orders, setOrders] = useState<any[]>([]); 
+  const [isOrdersLoading, setIsOrdersLoading] = useState(false); 
+  const [ordersError, setOrdersError] = useState<string | null>(null); 
+  const [ordersPagination, setOrdersPagination] = useState({ 
     currentPage: 1,
     totalPages: 1,
     totalItems: 0,
   });
-  // --- End Local States ---
-
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'orders'>('profile');
-  const [isRefreshing, setIsRefreshing] = useState(false); // Controls RefreshControl indicator
+  const [isRefreshing, setIsRefreshing] = useState(false); 
 
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -59,19 +51,11 @@ const Profile = () => {
       message,
       type
     });
-    // Automatically hide toast after 3 seconds
     setTimeout(() => {
       setToastConfig(prev => ({ ...prev, visible: false }));
     }, 3000);
   };
-
-  // useEffect for orders is now removed as we are not fetching data
-  // from the backend via a hook anymore. If you want dummy orders,
-  // you can set them here or directly in the useState initialization.
   useEffect(() => {
-    // This effect can be used for other UI-related initializations or side-effects
-    // that don't involve fetching data from a custom hook.
-    // For now, it's empty as per "just let it be UI" instruction.
   }, []); 
 
   const handleSignOut = async () => {
@@ -102,8 +86,6 @@ const Profile = () => {
 
   const onRefreshControl = async () => {
     setIsRefreshing(true);
-    // In a UI-only scenario, this would just simulate a refresh.
-    // No actual data fetching happens here.
     setTimeout(() => {
         setIsRefreshing(false);
         showToast('UI Refreshed (no data fetched)', 'info');
@@ -173,7 +155,7 @@ const Profile = () => {
             <View className="flex-row items-center px-4 py-2 bg-yellow-100 rounded-full">
               <Feather name="star" size={20} color="#F59E0B" />
               <Text className="ml-2 text-lg font-bold text-yellow-800">
-                {userData.total_bcoins} Coins {/* This will show 0 */}
+                {userData.total_bcoins} Coins 
               </Text>
             </View>
             <Text className="mt-3 text-sm text-center text-gray-500">
