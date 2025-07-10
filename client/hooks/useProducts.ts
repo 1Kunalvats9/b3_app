@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import axios from 'axios';
 
-interface Product {
+export interface Product {
   _id: string;
   id: string; 
   name: string;
@@ -17,6 +17,7 @@ interface Product {
   createdAt: string; 
   updatedAt: string; 
 }
+
 
 interface Pagination {
   currentPage: number;
@@ -44,6 +45,7 @@ interface ProductState {
   fetchProducts: (params?: Partial<ProductQueryParams>) => Promise<void>;
   refreshProducts: () => Promise<void>;
   setQueryParams: (params: Partial<ProductQueryParams>) => void;
+  saveProduct:(params: Product, token: string) => Promise<Product>;
 }
 
 const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:3000';
@@ -107,6 +109,63 @@ export const useProducts = create<ProductState>((set, get) => ({
         error: err.response?.data?.message || err.message || 'An unknown error occurred',
         loading: false,
       });
+    }
+  },
+  saveProduct: async (productData: Product, token: string): Promise<Product> => {
+    set({ loading: true, error: null });
+    try {
+      const isUpdate = !!productData._id; // Determine if it's an update based on MongoDB's _id
+      
+      let url: string;
+      let method: 'POST' | 'PUT';
+
+      if (isUpdate) {
+        // For update, use the backend's /save/:id endpoint and the product's custom 'id' (uuidv4)
+        if (!productData.id) {
+          throw new Error("Product 'id' is required for update operations.");
+        }
+        url = `${BACKEND_BASE_URL}/api/products/save/${productData.id}`;
+        method = 'PUT';
+      } else {
+        // For create, use the backend's root /products endpoint
+        url = `${BACKEND_BASE_URL}/api/products`;
+        method = 'POST';
+      }
+
+      const response = await axios({
+        method: method,
+        url: url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        data: productData, // Axios uses 'data' for request body
+      });
+
+      if (response.data.success) {
+        set({ loading: false });
+        return response.data.data; // Return the saved/updated product
+      } else {
+        const errorMessage = response.data.message || `Failed to ${isUpdate ? 'update' : 'add'} product`;
+        set({ error: errorMessage, loading: false });
+        throw new Error(errorMessage);
+      }
+    } catch (err: any) {
+      console.error('Error saving product:', err);
+      // Log the response object from Axios for detailed debugging
+      if (axios.isAxiosError(err) && err.response) {
+          console.error('Axios Error Response Status:', err.response.status);
+          console.error('Axios Error Response Headers:', err.response.headers);
+          console.error('Axios Error Response Data (RAW):', err.response.data); // This is crucial
+      } else if (err.request) {
+          console.error('Axios Error Request:', err.request); // Request was made but no response
+      } else {
+          console.error('Axios Error Message:', err.message); // Other errors
+      }
+
+      const errorMessage = err.response?.data?.message || err.message || `An unknown error occurred while saving product`;
+      set({ error: errorMessage, loading: false });
+      throw new Error(errorMessage); // Re-throw for component to catch
     }
   },
 

@@ -312,16 +312,17 @@ router.get('/', requireAdmin, async (req, res) => {
 // Update order status (Admin only)
 router.patch('/:id/status', requireAdmin, async (req, res) => {
     try {
+        console.log('entered order status change')
         const { status } = req.body;
         
         const validStatuses = ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'];
-        
         if (!validStatuses.includes(status)) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid status'
             });
         }
+        console.log('valid status hai')
         
         const updatedOrder = await Orders.findOneAndUpdate(
             { id: req.params.id },
@@ -335,6 +336,7 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
                 message: 'Order not found'
             });
         }
+        console.log("order updated")
         
         res.json({
             success: true,

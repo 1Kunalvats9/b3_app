@@ -3,26 +3,16 @@ import { View, Text, Image, TouchableOpacity, Alert, Dimensions } from 'react-na
 import { Feather } from '@expo/vector-icons';
 import { useCart } from '@/hooks/useCart';
 import QuantityModal from './QuantityModal';
+import { Product } from '@/hooks/useProducts';
 
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  originalPrice: number;
-  discountedPrice: number;
-  category: string;
-  image_url: string;
-  stock: number;
-  isOpen: boolean;
-  unit: string;
-  isActive: boolean;
-}
 
 interface ProductCardProps {
   product: Product;
+  isAdmin?: boolean;
+  onEdit?: (product: Product) => void;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, isAdmin = false, onEdit }) => { // Destructure isAdmin and onEdit, provide default false for isAdmin
   const { addToCart, getItemQuantity, updateQuantity } = useCart();
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const cartQuantity = getItemQuantity(product.id);
@@ -56,6 +46,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }
   };
 
+  const handleEdit = () => { // New handleEdit function
+    if (onEdit) {
+      onEdit(product);
+    }
+  };
+
   const discountPercentage = Math.round(((product.originalPrice - product.discountedPrice) / product.originalPrice) * 100);
 
   return (
@@ -63,8 +59,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       <View
         className="mx-1 mb-3 overflow-hidden bg-white border border-gray-100 shadow-sm rounded-2xl"
         style={{
-          width: (Dimensions.get('window').width - 32) / 2 - 8, // Fixed width for 2-column grid
-          height: 250, // Fixed height for the entire card
+          width: (Dimensions.get('window').width - 32) / 2 - 8, 
+          height: 250, 
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.1,
@@ -75,7 +71,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <View className="relative">
           <Image
             source={{ uri: product.image_url || 'https://via.placeholder.com/150' }}
-            className="w-full h-28" // Adjusted image height for more space
+            className="w-full h-28" 
             resizeMode="cover"
           />
           {discountPercentage > 0 && (
@@ -92,6 +88,18 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <View className="absolute inset-0 items-center justify-center bg-black/50">
               <Text className="font-bold text-white">Out of Stock</Text>
             </View>
+          )}
+
+          {isAdmin && (
+            <TouchableOpacity
+              onPress={handleEdit}
+              className="absolute p-2 bg-blue-500 rounded-full top-2 right-2"
+              style={{
+                zIndex: 10
+              }}
+            >
+              <Feather name="edit-2" size={14} color="white" />
+            </TouchableOpacity>
           )}
         </View>
 

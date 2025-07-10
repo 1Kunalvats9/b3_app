@@ -42,12 +42,11 @@ export default function AdminLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="past-orders"
+      <Tabs.Screen 
+        name='index'
         options={{
-          title: 'Past Orders',
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="archive" size={size} color={color} />
+          tabBarIcon:({ color, size }) => (
+            <Feather name="home" size={size} color={color} />
           ),
         }}
       />

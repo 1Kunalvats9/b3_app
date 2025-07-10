@@ -32,7 +32,7 @@ const _layout = () => {
                     headerShown: false,
                     title: 'Admin',
                     tabBarIcon: ({ color, size }) => <Feather size={size} color={color} name='settings' />,
-                    href: isAdmin ? '/(tabs)/admin' : null,
+                    href: isAdmin ? '/(tabs)/admin/orders' : null,
                     tabBarActiveTintColor:'#16a34a'
                 }}
             />

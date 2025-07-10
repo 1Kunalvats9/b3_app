@@ -321,7 +321,7 @@ const Profile = () => {
         <Text className={`font-semibold text-sm ${
           item.status === 'delivered' ? 'text-green-600' :
           item.status === 'cancelled' ? 'text-red-600' :
-          'text-yellow-600'
+          item.status==='confirmed'? ' text-green-600':'text-yellow-600'
         }`}>
           {item.status.replace(/_/g, ' ').charAt(0).toUpperCase() + item.status.replace(/_/g, ' ').slice(1)}
         </Text>

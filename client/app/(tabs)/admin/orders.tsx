@@ -6,14 +6,14 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Modal,
+  Modal, // Still needed for CustomAlert, but not for order details
   ScrollView,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '@clerk/clerk-expo';
-import CustomAlert from '@/components/CustomAlert';
+import CustomAlert from '@/components/CustomAlert'; // Keep if you want confirmation, adjust if you remove it.
 import CustomToast from '@/components/CustomToast';
 
 interface OrderItem {
@@ -27,7 +27,7 @@ interface OrderItem {
 
 interface Order {
   _id: string;
-  id: string;
+  id: string; // Your custom UUID
   user_id: string;
   items: OrderItem[];
   status: 'pending' | 'confirmed' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
@@ -62,8 +62,7 @@ const AdminOrders = () => {
     totalItems: 0,
   });
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [showOrderModal, setShowOrderModal] = useState(false);
+  // Removed selectedOrder and showOrderModal states
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const [alertConfig, setAlertConfig] = useState({
@@ -119,6 +118,7 @@ const AdminOrders = () => {
     try {
       const token = await getToken();
       if (!token) {
+        console.log("FETCH ORDERS: Authentication token missing.");
         throw new Error('Authentication required');
       }
 
@@ -130,7 +130,7 @@ const AdminOrders = () => {
       if (status && status !== 'all') {
         params.append('status', status);
       }
-
+      console.log(`FETCH ORDERS: Fetching orders from ${BACKEND_BASE_URL}/api/orders?${params.toString()}`);
       const response = await fetch(`${BACKEND_BASE_URL}/api/orders?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -138,6 +138,8 @@ const AdminOrders = () => {
       });
 
       const data = await response.json();
+      console.log('FETCH ORDERS: Response status:', response.status);
+      console.log('FETCH ORDERS: Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.message || 'Failed to fetch orders');
@@ -151,22 +153,26 @@ const AdminOrders = () => {
 
       setPagination(data.pagination);
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error('FETCH ORDERS: Error fetching orders:', error);
       showToast(error instanceof Error ? error.message : 'Failed to fetch orders', 'error');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+      console.log('FETCH ORDERS: Loading/refreshing complete.');
     }
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     setIsUpdatingStatus(true);
+    console.log(`UPDATE STATUS: Attempting to update order ${orderId} to status ${newStatus}`);
     try {
       const token = await getToken();
       if (!token) {
+        console.log("UPDATE STATUS: Authentication token missing.");
         throw new Error('Authentication required');
       }
 
+      console.log(`UPDATE STATUS: Sending PATCH request to ${BACKEND_BASE_URL}/api/orders/${orderId}/status`);
       const response = await fetch(`${BACKEND_BASE_URL}/api/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: {
@@ -175,56 +181,72 @@ const AdminOrders = () => {
         },
         body: JSON.stringify({ status: newStatus }),
       });
-
+      console.log("UPDATE STATUS: Request sent, waiting for response.");
+      
       const data = await response.json();
+      console.log('UPDATE STATUS: Response status:', response.status);
+      console.log('UPDATE STATUS: Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.message || 'Failed to update order status');
       }
 
-      // Update local state
       setOrders(prev => prev.map(order => 
         order.id === orderId ? { ...order, status: newStatus as any } : order
       ));
 
-      if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder(prev => prev ? { ...prev, status: newStatus as any } : null);
-      }
-
+      // No selectedOrder to update anymore
       showToast('Order status updated successfully', 'success');
+      console.log('UPDATE STATUS: Status update successful.');
+
     } catch (error) {
-      console.error('Error updating order status:', error);
+      console.error('UPDATE STATUS: Error updating order status:', error);
       showToast(error instanceof Error ? error.message : 'Failed to update order status', 'error');
     } finally {
       setIsUpdatingStatus(false);
+      console.log('UPDATE STATUS: isUpdatingStatus set to false.');
     }
   };
 
-  const handleStatusUpdate = (order: Order, newStatus: string) => {
+  // Modified handleStatusUpdate to receive the order directly
+  const handleStatusUpdate = (orderToUpdate: Order, newStatus: string) => {
+    console.log(`HANDLE STATUS UPDATE: Function called for order: ${orderToUpdate.id}, newStatus: ${newStatus}`);
+    
     const statusLabel = statusOptions.find(s => s.value === newStatus)?.label || newStatus;
     
     showAlert(
       'Update Order Status',
-      `Are you sure you want to change order #${order.id.substring(0, 8)} status to "${statusLabel}"?`,
+      `Are you sure you want to change order #${orderToUpdate.id.substring(0, 8)} status to "${statusLabel}"?`,
       [
-        { text: 'Cancel', style: 'cancel', onPress: () => {} },
+        { text: 'Cancel', style: 'cancel', onPress: () => {
+            console.log("HANDLE STATUS UPDATE: Alert cancelled.");
+            // Important: Make sure your CustomAlert calls onClose when "Cancel" is pressed.
+        }},
         {
           text: 'Update',
-          onPress: () => updateOrderStatus(order.id, newStatus),
+          onPress: () => {
+            console.log("HANDLE STATUS UPDATE: Alert 'Update' pressed. Calling updateOrderStatus.");
+            updateOrderStatus(orderToUpdate.id, newStatus);
+            // Important: Make sure your CustomAlert calls onClose when "Update" is pressed.
+            // If not, you might want to call setAlertConfig(prev => ({...prev, visible: false})) here.
+          },
         },
       ]
     );
   };
 
   useEffect(() => {
+    console.log(`USE EFFECT: Fetching orders for status: ${selectedStatus}`);
     fetchOrders(1, selectedStatus, true);
   }, [selectedStatus]);
 
   const onRefresh = useCallback(() => {
+    console.log(`ON REFRESH: Triggered for status: ${selectedStatus}`);
     fetchOrders(1, selectedStatus, true);
   }, [selectedStatus]);
 
   const loadMore = () => {
+    console.log(`LOAD MORE: Triggered. Current page: ${pagination.currentPage}, Total pages: ${pagination.totalPages}`);
     if (!isLoading && pagination.currentPage < pagination.totalPages) {
       fetchOrders(pagination.currentPage + 1, selectedStatus);
     }
@@ -238,216 +260,112 @@ const AdminOrders = () => {
     return statusOptions.find(s => s.value === status)?.label || status;
   };
 
-  const renderOrderItem = ({ item }: { item: Order }) => (
-    <TouchableOpacity
-      onPress={() => {
-        setSelectedOrder(item);
-        setShowOrderModal(true);
-      }}
-      className="p-4 mb-4 bg-white border border-gray-100 shadow-sm rounded-xl"
-    >
-      <View className="flex-row items-center justify-between mb-3">
-        <Text className="text-lg font-bold text-gray-800">
-          Order #{item.id.substring(0, 8)}
-        </Text>
-        <View
-          className="px-3 py-1 rounded-full"
-          style={{ backgroundColor: `${getStatusColor(item.status)}20` }}
-        >
-          <Text
-            className="text-sm font-semibold"
-            style={{ color: getStatusColor(item.status) }}
-          >
-            {getStatusLabel(item.status)}
-          </Text>
-        </View>
-      </View>
+  const renderOrderItem = ({ item }: { item: Order }) => {
+    // Determine the next possible statuses for the current order
+    const nextStatusActions: { label: string; value: string; color: string }[] = [];
 
-      <View className="mb-3">
-        <Text className="text-base font-semibold text-gray-700">
-          ₹{item.total_amount.toFixed(2)}
-        </Text>
-        <Text className="text-sm text-gray-500">
-          {item.items.length} item{item.items.length !== 1 ? 's' : ''}
-        </Text>
-        {item.bcoins_used > 0 && (
-          <Text className="text-sm text-yellow-600">
-            Bcoins Used: {item.bcoins_used}
-          </Text>
-        )}
-      </View>
-
-      <View className="mb-3">
-        <Text className="text-sm text-gray-600">
-          <Text className="font-medium">Phone:</Text> {item.phone_number}
-        </Text>
-        <Text className="text-sm text-gray-600" numberOfLines={2}>
-          <Text className="font-medium">Address:</Text> {item.delivery_address}
-        </Text>
-        <Text className="text-sm text-gray-600">
-          <Text className="font-medium">Payment:</Text> {item.payment_mode.replace(/_/g, ' ')}
-        </Text>
-      </View>
-
-      <Text className="text-xs text-gray-500">
-        {new Date(item.createdAt).toLocaleDateString()} at{' '}
-        {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  const renderOrderModal = () => {
-    if (!selectedOrder) return null;
-
-    const nextStatusOptions = {
-      pending: ['confirmed', 'cancelled'],
-      confirmed: ['preparing', 'cancelled'],
-      preparing: ['out_for_delivery', 'cancelled'],
-      out_for_delivery: ['delivered'],
-      delivered: [],
-      cancelled: [],
-    };
-
-    const availableStatuses = nextStatusOptions[selectedOrder.status] || [];
+    // Define allowed transitions (simplified for direct buttons)
+    switch (item.status) {
+      case 'pending':
+        nextStatusActions.push(
+          { label: 'Confirm', value: 'confirmed', color: '#3B82F6' },
+          { label: 'Cancel', value: 'cancelled', color: '#EF4444' }
+        );
+        break;
+      case 'confirmed':
+        nextStatusActions.push(
+          { label: 'Prepare', value: 'preparing', color: '#8B5CF6' },
+          { label: 'Cancel', value: 'cancelled', color: '#EF4444' }
+        );
+        break;
+      case 'preparing':
+        nextStatusActions.push(
+          { label: 'Out for Delivery', value: 'out_for_delivery', color: '#10B981' },
+          { label: 'Cancel', value: 'cancelled', color: '#EF4444' }
+        );
+        break;
+      case 'out_for_delivery':
+        nextStatusActions.push(
+          { label: 'Delivered', value: 'delivered', color: '#059669' }
+        );
+        break;
+      // No actions for 'delivered' or 'cancelled'
+    }
 
     return (
-      <Modal
-        visible={showOrderModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowOrderModal(false)}
+      <View
+        className="p-4 mb-4 bg-white border border-gray-100 shadow-sm rounded-xl"
       >
-        <SafeAreaView className="flex-1 bg-gray-50">
-          <View className="flex-row items-center justify-between p-4 bg-white border-b border-gray-200">
-            <Text className="text-xl font-bold text-gray-800">
-              Order Details
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowOrderModal(false)}
-              className="p-2"
+        <View className="flex-row items-center justify-between mb-3">
+          <Text className="text-lg font-bold text-gray-800">
+            Order #{item.id.substring(0, 8)}
+          </Text>
+          <View
+            className="px-3 py-1 rounded-full"
+            style={{ backgroundColor: `${getStatusColor(item.status)}20` }}
+          >
+            <Text
+              className="text-sm font-semibold"
+              style={{ color: getStatusColor(item.status) }}
             >
-              <Feather name="x" size={24} color="#6B7280" />
-            </TouchableOpacity>
+              {getStatusLabel(item.status)}
+            </Text>
           </View>
+        </View>
 
-          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-            {/* Order Info */}
-            <View className="p-4 mx-4 mt-4 bg-white border border-gray-100 shadow-sm rounded-xl">
-              <Text className="mb-4 text-lg font-bold text-gray-800">
-                Order #{selectedOrder.id.substring(0, 8)}
-              </Text>
-              
-              <View className="mb-3">
-                <Text className="text-sm text-gray-500">Status</Text>
-                <View
-                  className="self-start px-3 py-1 mt-1 rounded-full"
-                  style={{ backgroundColor: `${getStatusColor(selectedOrder.status)}20` }}
-                >
-                  <Text
-                    className="text-sm font-semibold"
-                    style={{ color: getStatusColor(selectedOrder.status) }}
-                  >
-                    {getStatusLabel(selectedOrder.status)}
-                  </Text>
-                </View>
-              </View>
+        <View className="mb-3">
+          <Text className="text-base font-semibold text-gray-700">
+            ₹{item.total_amount.toFixed(2)}
+          </Text>
+          <Text className="text-sm text-gray-500">
+            {item.items.length} item{item.items.length !== 1 ? 's' : ''}
+          </Text>
+          {item.bcoins_used > 0 && (
+            <Text className="text-sm text-yellow-600">
+              Bcoins Used: {item.bcoins_used}
+            </Text>
+          )}
+        </View>
 
-              <View className="mb-3">
-                <Text className="text-sm text-gray-500">Total Amount</Text>
-                <Text className="text-xl font-bold text-gray-800">
-                  ₹{selectedOrder.total_amount.toFixed(2)}
+        <View className="mb-3">
+          <Text className="text-sm text-gray-600">
+            <Text className="font-medium">Phone:</Text> {item.phone_number}
+          </Text>
+          <Text className="text-sm text-gray-600" numberOfLines={2}>
+            <Text className="font-medium">Address:</Text> {item.delivery_address}
+          </Text>
+          <Text className="text-sm text-gray-600">
+            <Text className="font-medium">Payment:</Text> {item.payment_mode.replace(/_/g, ' ')}
+          </Text>
+        </View>
+
+        <Text className="mb-4 text-xs text-gray-500">
+          {new Date(item.createdAt).toLocaleDateString()} at{' '}
+          {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </Text>
+
+        {/* Action Buttons based on status */}
+        {nextStatusActions.length > 0 && (
+          <View className="flex-row justify-around mt-2">
+            {nextStatusActions.map((action) => (
+              <TouchableOpacity
+                key={action.value}
+                onPress={() => handleStatusUpdate(item, action.value)}
+                disabled={isUpdatingStatus}
+                className={`flex-1 px-4 py-2 mx-1 rounded-lg items-center justify-center`}
+                style={{ 
+                  backgroundColor: isUpdatingStatus ? '#E5E7EB' : action.color, // Gray out when updating
+                  opacity: isUpdatingStatus ? 0.6 : 1 
+                }}
+              >
+                <Text className="text-base font-semibold text-white">
+                  {action.label}
                 </Text>
-              </View>
-
-              <View className="mb-3">
-                <Text className="text-sm text-gray-500">Phone Number</Text>
-                <Text className="text-base text-gray-800">{selectedOrder.phone_number}</Text>
-              </View>
-
-              <View className="mb-3">
-                <Text className="text-sm text-gray-500">Delivery Address</Text>
-                <Text className="text-base text-gray-800">{selectedOrder.delivery_address}</Text>
-              </View>
-
-              <View className="mb-3">
-                <Text className="text-sm text-gray-500">Payment Method</Text>
-                <Text className="text-base text-gray-800">
-                  {selectedOrder.payment_mode.replace(/_/g, ' ')}
-                </Text>
-              </View>
-
-              {selectedOrder.bcoins_used > 0 && (
-                <View className="mb-3">
-                  <Text className="text-sm text-gray-500">Bcoins Used</Text>
-                  <Text className="text-base text-yellow-600 font-semibold">
-                    {selectedOrder.bcoins_used} coins
-                  </Text>
-                </View>
-              )}
-
-              <View className="mb-3">
-                <Text className="text-sm text-gray-500">Order Date</Text>
-                <Text className="text-base text-gray-800">
-                  {new Date(selectedOrder.createdAt).toLocaleDateString()} at{' '}
-                  {new Date(selectedOrder.createdAt).toLocaleTimeString([], { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })}
-                </Text>
-              </View>
-            </View>
-
-            {/* Order Items */}
-            <View className="p-4 mx-4 mt-4 bg-white border border-gray-100 shadow-sm rounded-xl">
-              <Text className="mb-4 text-lg font-bold text-gray-800">Order Items</Text>
-              
-              {selectedOrder.items.map((item, index) => (
-                <View key={index} className="pb-3 mb-3 border-b border-gray-100 last:border-b-0 last:mb-0">
-                  <Text className="text-base font-semibold text-gray-800">
-                    {item.product_name}
-                  </Text>
-                  <View className="flex-row items-center justify-between mt-1">
-                    <Text className="text-sm text-gray-600">
-                      {item.quantity} {item.unit}{item.quantity > 1 ? 's' : ''} × ₹{item.unit_price.toFixed(2)}
-                    </Text>
-                    <Text className="text-base font-semibold text-gray-800">
-                      ₹{item.total_price.toFixed(2)}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-
-            {/* Status Update Actions */}
-            {availableStatuses.length > 0 && (
-              <View className="p-4 mx-4 mt-4 mb-8 bg-white border border-gray-100 shadow-sm rounded-xl">
-                <Text className="mb-4 text-lg font-bold text-gray-800">Update Status</Text>
-                
-                {availableStatuses.map((status) => (
-                  <TouchableOpacity
-                    key={status}
-                    onPress={() => handleStatusUpdate(selectedOrder, status)}
-                    disabled={isUpdatingStatus}
-                    className="flex-row items-center justify-between p-3 mb-3 border border-gray-200 rounded-lg last:mb-0"
-                    style={{ opacity: isUpdatingStatus ? 0.6 : 1 }}
-                  >
-                    <View className="flex-row items-center">
-                      <View
-                        className="w-4 h-4 mr-3 rounded-full"
-                        style={{ backgroundColor: getStatusColor(status) }}
-                      />
-                      <Text className="text-base font-medium text-gray-800">
-                        Mark as {getStatusLabel(status)}
-                      </Text>
-                    </View>
-                    <Feather name="chevron-right" size={20} color="#6B7280" />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
     );
   };
 
@@ -456,7 +374,7 @@ const AdminOrders = () => {
       {/* Header */}
       <View className="px-4 py-4 bg-white border-b border-gray-100 shadow-sm">
         <Text className="text-xl font-bold text-center text-gray-800">Orders Management</Text>
-        <Text className="text-sm text-center text-gray-500 mt-1">
+        <Text className="mt-1 text-sm text-center text-gray-500">
           {pagination.totalItems} total orders
         </Text>
       </View>
@@ -471,7 +389,10 @@ const AdminOrders = () => {
           {statusOptions.map((status) => (
             <TouchableOpacity
               key={status.value}
-              onPress={() => setSelectedStatus(status.value)}
+              onPress={() => {
+                console.log(`STATUS FILTER: Selected new status: ${status.value}`);
+                setSelectedStatus(status.value);
+              }}
               className={`px-4 py-2 mr-3 rounded-full border ${
                 selectedStatus === status.value
                   ? 'border-purple-500 bg-purple-50'
@@ -535,21 +456,26 @@ const AdminOrders = () => {
         </View>
       )}
 
-      {renderOrderModal()}
-
+      {/* CustomAlert and CustomToast are still here for confirmations and messages */}
       <CustomAlert
         visible={alertConfig.visible}
         title={alertConfig.title}
         message={alertConfig.message}
         buttons={alertConfig.buttons}
-        onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))}
+        onClose={() => {
+            console.log("CUSTOM ALERT: Closing alert.");
+            setAlertConfig(prev => ({ ...prev, visible: false }));
+        }}
       />
 
       <CustomToast
         visible={toastConfig.visible}
         message={toastConfig.message}
         type={toastConfig.type}
-        onHide={() => setToastConfig(prev => ({ ...prev, visible: false }))}
+        onHide={() => {
+            console.log("CUSTOM TOAST: Hiding toast.");
+            setToastConfig(prev => ({ ...prev, visible: false }));
+        }}
       />
     </SafeAreaView>
   );

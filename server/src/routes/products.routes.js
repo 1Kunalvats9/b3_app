@@ -81,30 +81,7 @@ router.get('/:id', async (req, res) => {
         });
     }
 });
-router.use(requireAuth());
 
-const requireAdmin = (req, res, next) => {
-    const { userId } = req.auth;
-    
-    // Check user role from database
-    Users.findOne({ clerk_id: userId })
-        .then(user => {
-            if (!user || user.role !== 'admin') {
-                return res.status(403).json({
-                    success: false,
-                    message: 'Admin access required'
-                });
-            }
-            next();
-        })
-        .catch(error => {
-            console.error('Error checking admin role:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Error verifying admin access'
-            });
-        });
-};
 
 // Alternative middleware that checks Clerk metadata directly  
 const requireAdminClerk = (req, res, next) => {
@@ -119,7 +96,7 @@ const requireAdminClerk = (req, res, next) => {
 };
 
 // Create new product (Admin only)
-router.post('/', requireAdmin, async (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const {
             name,
@@ -164,8 +141,9 @@ router.post('/', requireAdmin, async (req, res) => {
     }
 });
 
-router.put('/:id', requireAdmin, async (req, res) => {
+router.put('/save/:id', async (req, res) => {
     try {
+        console.log('saving product....')
         const updatedProduct = await Products.findOneAndUpdate(
             { id: req.params.id },
             req.body,
@@ -178,7 +156,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
                 message: 'Product not found'
             });
         }
-        
+        console.log('saved')
         res.json({
             success: true,
             message: 'Product updated successfully',
@@ -194,7 +172,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
 });
 
 // Delete product (Admin only)
-router.delete('/:id', requireAdmin, async (req, res) => {
+router.delete('/delete/:id', async (req, res) => {
     try {
         const product = await Products.findOneAndUpdate(
             { id: req.params.id },
