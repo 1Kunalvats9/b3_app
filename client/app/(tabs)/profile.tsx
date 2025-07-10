@@ -68,7 +68,6 @@ const Profile = () => {
     }, 3000);
   };
 
-  // Initial data fetch
   useEffect(() => {
     const initializeProfile = async () => {
       try {
