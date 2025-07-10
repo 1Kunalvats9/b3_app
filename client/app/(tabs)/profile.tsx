@@ -1,35 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView, RefreshControl, ActivityIndicator, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth, useUser as useClerkUser } from '@clerk/clerk-expo';
 import { Feather } from '@expo/vector-icons';
 import { Redirect } from 'expo-router';
 
-// Import necessary components (ensure these paths are correct in your project)
 import CustomAlert from '@/components/CustomAlert';
 import CustomToast from '@/components/CustomToast';
-
-// NO import for useProfile anymore
+import { useProfile } from '@/hooks/useProfile';
 
 const Profile = () => {
   const { signOut, isSignedIn, getToken } = useAuth();
-  const { user: clerkUser } = useClerkUser(); // Get user details directly from Clerk
-
-  // --- Local States replacing useProfile hook data ---
-  const [userData, setUserData] = useState({ total_bcoins: 0 }); // Dummy for bcoins
-  const [orders, setOrders] = useState<any[]>([]); // Dummy for orders
-  const [isOrdersLoading, setIsOrdersLoading] = useState(false); // Dummy loading state
-  const [ordersError, setOrdersError] = useState<string | null>(null); // Dummy error state
-  const [ordersPagination, setOrdersPagination] = useState({ // Dummy pagination
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0,
-  });
-  // --- End Local States ---
+  const { user: clerkUser } = useClerkUser();
+  const {
+    profile,
+    isProfileLoading,
+    profileError,
+    orders,
+    isOrdersLoading,
+    ordersError,
+    ordersPagination,
+    bcoinTransactions,
+    isBcoinsLoading,
+    bcoinsError,
+    bcoinsPagination,
+    fetchProfile,
+    fetchOrders,
+    fetchBcoinHistory,
+    refreshAll,
+    clearProfile,
+  } = useProfile();
 
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'orders'>('profile');
-  const [isRefreshing, setIsRefreshing] = useState(false); // Controls RefreshControl indicator
+  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'bcoins'>('profile');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -59,20 +63,48 @@ const Profile = () => {
       message,
       type
     });
-    // Automatically hide toast after 3 seconds
     setTimeout(() => {
       setToastConfig(prev => ({ ...prev, visible: false }));
     }, 3000);
   };
 
-  // useEffect for orders is now removed as we are not fetching data
-  // from the backend via a hook anymore. If you want dummy orders,
-  // you can set them here or directly in the useState initialization.
+  // Initial data fetch
   useEffect(() => {
-    // This effect can be used for other UI-related initializations or side-effects
-    // that don't involve fetching data from a custom hook.
-    // For now, it's empty as per "just let it be UI" instruction.
-  }, []); 
+    const initializeProfile = async () => {
+      try {
+        const token = await getToken();
+        if (token) {
+          await fetchProfile(token);
+        }
+      } catch (error) {
+        console.error('Error initializing profile:', error);
+      }
+    };
+
+    if (isSignedIn) {
+      initializeProfile();
+    }
+  }, [isSignedIn]);
+
+  // Fetch data based on active tab
+  useEffect(() => {
+    const fetchTabData = async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        if (activeTab === 'orders' && orders.length === 0) {
+          await fetchOrders(token);
+        } else if (activeTab === 'bcoins' && bcoinTransactions.length === 0) {
+          await fetchBcoinHistory(token);
+        }
+      } catch (error) {
+        console.error('Error fetching tab data:', error);
+      }
+    };
+
+    fetchTabData();
+  }, [activeTab]);
 
   const handleSignOut = async () => {
     showAlert(
@@ -86,6 +118,7 @@ const Profile = () => {
           onPress: async () => {
             setIsSigningOut(true);
             try {
+              clearProfile();
               await signOut();
               showToast('Signed out successfully', 'success');
             } catch (error) {
@@ -102,12 +135,44 @@ const Profile = () => {
 
   const onRefreshControl = async () => {
     setIsRefreshing(true);
-    // In a UI-only scenario, this would just simulate a refresh.
-    // No actual data fetching happens here.
-    setTimeout(() => {
-        setIsRefreshing(false);
-        showToast('UI Refreshed (no data fetched)', 'info');
-    }, 1000);
+    try {
+      const token = await getToken();
+      if (token) {
+        await refreshAll(token);
+        showToast('Profile refreshed successfully', 'success');
+      }
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+      showToast('Failed to refresh profile', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const loadMoreOrders = async () => {
+    if (!isOrdersLoading && ordersPagination.currentPage < ordersPagination.totalPages) {
+      try {
+        const token = await getToken();
+        if (token) {
+          await fetchOrders(token, ordersPagination.currentPage + 1);
+        }
+      } catch (error) {
+        console.error('Error loading more orders:', error);
+      }
+    }
+  };
+
+  const loadMoreBcoins = async () => {
+    if (!isBcoinsLoading && bcoinsPagination.currentPage < bcoinsPagination.totalPages) {
+      try {
+        const token = await getToken();
+        if (token) {
+          await fetchBcoinHistory(token, bcoinsPagination.currentPage + 1);
+        }
+      } catch (error) {
+        console.error('Error loading more bcoins:', error);
+      }
+    }
   };
 
   if (!isSignedIn) {
@@ -120,6 +185,12 @@ const Profile = () => {
       title: 'Edit Profile',
       subtitle: 'Update your personal information',
       onPress: () => showToast('Profile editing will be available soon!', 'info'),
+    },
+    {
+      icon: 'map-pin',
+      title: 'Manage Addresses',
+      subtitle: 'Add or edit delivery addresses',
+      onPress: () => showToast('Address management will be available soon!', 'info'),
     },
     {
       icon: 'heart',
@@ -149,160 +220,269 @@ const Profile = () => {
         <RefreshControl refreshing={isRefreshing} onRefresh={onRefreshControl} />
       }
     >
-      <View className="p-8 mx-4 mt-6 bg-white border border-gray-100 shadow-sm rounded-2xl">
-        <View className="items-center">
-          <View className="relative">
-            <Image
-              source={{
-                uri: clerkUser?.imageUrl || 'https://via.placeholder.com/120x120/8B5CF6/FFFFFF?text=U'
-              }}
-              className="border-4 border-purple-100 rounded-full w-28 h-28"
-            />
-            <TouchableOpacity className="absolute p-3 bg-purple-500 rounded-full shadow-lg -bottom-2 -right-2">
-              <Feather name="camera" size={18} color="white" />
-            </TouchableOpacity>
-          </View>
-          <Text className="mt-6 text-2xl font-bold text-gray-800">
-            {clerkUser?.fullName || 'User'}
-          </Text>
-          <Text className="mt-2 text-base text-gray-500">
-            {clerkUser?.primaryEmailAddress?.emailAddress}
-          </Text>
-
-          <View className="mt-6">
-            <View className="flex-row items-center px-4 py-2 bg-yellow-100 rounded-full">
-              <Feather name="star" size={20} color="#F59E0B" />
-              <Text className="ml-2 text-lg font-bold text-yellow-800">
-                {userData.total_bcoins} Coins {/* This will show 0 */}
-              </Text>
-            </View>
-            <Text className="mt-3 text-sm text-center text-gray-500">
-              Earn 1 coin for every ₹100 spent
-            </Text>
-          </View>
+      {isProfileLoading ? (
+        <View className="items-center justify-center py-20">
+          <ActivityIndicator size="large" color="#8B5CF6" />
+          <Text className="mt-4 text-gray-600">Loading profile...</Text>
         </View>
-      </View>
+      ) : profileError ? (
+        <View className="items-center justify-center py-20">
+          <Feather name="alert-triangle" size={48} color="#EF4444" />
+          <Text className="mt-4 text-xl font-bold text-gray-800">Error loading profile</Text>
+          <Text className="px-8 mt-2 text-center text-gray-500">{profileError}</Text>
+        </View>
+      ) : (
+        <>
+          <View className="p-8 mx-4 mt-6 bg-white border border-gray-100 shadow-sm rounded-2xl">
+            <View className="items-center">
+              <View className="relative">
+                <Image
+                  source={{
+                    uri: clerkUser?.imageUrl || 'https://via.placeholder.com/120x120/8B5CF6/FFFFFF?text=U'
+                  }}
+                  className="border-4 border-purple-100 rounded-full w-28 h-28"
+                />
+                <TouchableOpacity className="absolute p-3 bg-purple-500 rounded-full shadow-lg -bottom-2 -right-2">
+                  <Feather name="camera" size={18} color="white" />
+                </TouchableOpacity>
+              </View>
+              <Text className="mt-6 text-2xl font-bold text-gray-800">
+                {profile?.name || clerkUser?.fullName || 'User'}
+              </Text>
+              <Text className="mt-2 text-base text-gray-500">
+                {profile?.email || clerkUser?.primaryEmailAddress?.emailAddress}
+              </Text>
+              {profile?.phone && (
+                <Text className="mt-1 text-sm text-gray-500">
+                  {profile.phone}
+                </Text>
+              )}
 
-      <View className="mx-4 mt-6 bg-white border border-gray-100 shadow-sm rounded-2xl">
-        {profileOptions.map((option, index) => (
+              <View className="mt-6">
+                <View className="flex-row items-center px-4 py-2 bg-yellow-100 rounded-full">
+                  <Feather name="star" size={20} color="#F59E0B" />
+                  <Text className="ml-2 text-lg font-bold text-yellow-800">
+                    {profile?.total_bcoins || 0} Coins
+                  </Text>
+                </View>
+                <Text className="mt-3 text-sm text-center text-gray-500">
+                  Earn 1 coin for every ₹100 spent • 1 coin = ₹2 discount
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View className="mx-4 mt-6 bg-white border border-gray-100 shadow-sm rounded-2xl">
+            {profileOptions.map((option, index) => (
+              <TouchableOpacity
+                key={option.title}
+                onPress={option.onPress}
+                className={`flex-row items-center p-5 ${
+                  index !== profileOptions.length - 1 ? 'border-b border-gray-50' : ''
+                }`}
+              >
+                <View className="items-center justify-center w-12 h-12 mr-4 bg-purple-50 rounded-xl">
+                  <Feather name={option.icon as any} size={20} color="#8B5CF6" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-lg font-bold text-gray-800">
+                    {option.title}
+                  </Text>
+                  <Text className="mt-1 text-sm text-gray-500">
+                    {option.subtitle}
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            ))}
+          </View>
+
           <TouchableOpacity
-            key={option.title}
-            onPress={option.onPress}
-            className={`flex-row items-center p-5 ${
-              index !== profileOptions.length - 1 ? 'border-b border-gray-50' : ''
-            }`}
+            onPress={handleSignOut}
+            disabled={isSigningOut}
+            className="p-5 mx-4 mt-6 mb-8 bg-white border border-gray-100 shadow-sm rounded-2xl"
           >
-            <View className="items-center justify-center w-12 h-12 mr-4 bg-purple-50 rounded-xl">
-              <Feather name={option.icon as any} size={20} color="#8B5CF6" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-lg font-bold text-gray-800">
-                {option.title}
-              </Text>
-              <Text className="mt-1 text-sm text-gray-500">
-                {option.subtitle}
+            <View className="flex-row items-center justify-center">
+              <Feather name="log-out" size={20} color="#EF4444" />
+              <Text className="ml-3 text-lg font-bold text-red-500">
+                {isSigningOut ? 'Signing Out...' : 'Sign Out'}
               </Text>
             </View>
-            <Feather name="chevron-right" size={20} color="#9CA3AF" />
           </TouchableOpacity>
-        ))}
-      </View>
-
-      <TouchableOpacity
-        onPress={handleSignOut}
-        disabled={isSigningOut}
-        className="p-5 mx-4 mt-6 mb-8 bg-white border border-gray-100 shadow-sm rounded-2xl"
-      >
-        <View className="flex-row items-center justify-center">
-          <Feather name="log-out" size={20} color="#EF4444" />
-          <Text className="ml-3 text-lg font-bold text-red-500">
-            {isSigningOut ? 'Signing Out...' : 'Sign Out'}
-          </Text>
-        </View>
-      </TouchableOpacity>
+        </>
+      )}
     </ScrollView>
   );
 
+  const renderOrderItem = ({ item }: { item: any }) => (
+    <View className="p-4 mb-4 bg-white border border-gray-100 shadow-sm rounded-xl">
+      <View className="flex-row items-center justify-between mb-2">
+        <Text className="text-lg font-bold text-gray-800">Order #{item.id.substring(0, 8)}</Text>
+        <Text className={`font-semibold text-sm ${
+          item.status === 'delivered' ? 'text-green-600' :
+          item.status === 'cancelled' ? 'text-red-600' :
+          'text-yellow-600'
+        }`}>
+          {item.status.replace(/_/g, ' ').charAt(0).toUpperCase() + item.status.replace(/_/g, ' ').slice(1)}
+        </Text>
+      </View>
+      <Text className="mb-1 text-gray-600">Total: ₹{item.total_amount.toFixed(2)}</Text>
+      <Text className="mb-1 text-sm text-gray-500">Items: {item.items.length}</Text>
+      {item.bcoins_used > 0 && (
+        <Text className="mb-1 text-sm text-yellow-600">Bcoins Used: {item.bcoins_used}</Text>
+      )}
+      <Text className="text-xs text-gray-500">
+        Date: {new Date(item.createdAt).toLocaleDateString()} at {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      </Text>
+    </View>
+  );
+
   const renderOrdersContent = () => (
-    <ScrollView
-      className="flex-1"
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={isRefreshing || isOrdersLoading} onRefresh={onRefreshControl} />
-      }
-    >
-      <View className="px-4 py-6">
-        {isOrdersLoading ? ( // This will always be false with dummy data
-          <View className="items-center justify-center flex-1 py-20">
-            <View className="items-center justify-center w-24 h-24 mb-4 bg-gray-100 rounded-full">
-              <Feather name="clock" size={32} color="#9CA3AF" />
-            </View>
-            <Text className="mb-2 text-xl font-bold text-gray-800">
-              Loading your orders...
-            </Text>
-            <Text className="text-center text-gray-500">
-              Please wait while we fetch your order history
-            </Text>
-          </View>
-        ) : ordersError ? ( // This will always be null with dummy data
-          <View className="items-center justify-center flex-1 py-20">
-            <Feather name="alert-triangle" size={32} color="#EF4444" />
-            <Text className="mt-4 mb-2 text-xl font-bold text-gray-800">
-              Error loading orders
-            </Text>
-            <Text className="px-8 text-center text-gray-500">
-              {ordersError}
-            </Text>
-          </View>
-        ) : orders.length > 0 ? (
-          <>
+    <View className="flex-1">
+      {isOrdersLoading && orders.length === 0 ? (
+        <View className="items-center justify-center flex-1 py-20">
+          <ActivityIndicator size="large" color="#8B5CF6" />
+          <Text className="mt-4 text-gray-600">Loading your orders...</Text>
+        </View>
+      ) : ordersError ? (
+        <View className="items-center justify-center flex-1 py-20">
+          <Feather name="alert-triangle" size={32} color="#EF4444" />
+          <Text className="mt-4 mb-2 text-xl font-bold text-gray-800">Error loading orders</Text>
+          <Text className="px-8 text-center text-gray-500">{ordersError}</Text>
+        </View>
+      ) : orders.length > 0 ? (
+        <FlatList
+          data={orders}
+          renderItem={renderOrderItem}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={{ padding: 16 }}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={onRefreshControl} />
+          }
+          onEndReached={loadMoreOrders}
+          onEndReachedThreshold={0.1}
+          ListHeaderComponent={() => (
             <View className="p-4 mb-6 bg-blue-50 rounded-xl">
-              <Text className="mb-1 text-base font-semibold text-blue-800">
-                Order History
-              </Text>
+              <Text className="mb-1 text-base font-semibold text-blue-800">Order History</Text>
               <Text className="text-sm text-blue-600">
                 {ordersPagination.totalItems} order{ordersPagination.totalItems !== 1 ? 's' : ''} found
               </Text>
             </View>
-            {/* This map will not render any orders unless you add dummy data to the 'orders' state */}
-            {orders.map((order) => (
-              <View
-                key={order._id}
-                className="p-4 mb-4 bg-white border border-gray-100 shadow-sm rounded-xl"
-              >
-                <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-lg font-bold text-gray-800">Order #{order.id.substring(0, 8)}</Text>
-                  <Text className={`font-semibold text-sm ${
-                    order.status === 'delivered' ? 'text-green-600' :
-                    order.status === 'cancelled' ? 'text-red-600' :
-                    'text-yellow-600'
-                  }`}>
-                    {order.status.replace(/_/g, ' ').charAt(0).toUpperCase() + order.status.replace(/_/g, ' ').slice(1)}
-                  </Text>
-                </View>
-                <Text className="mb-1 text-gray-600">Total: ₹{order.total_amount.toFixed(2)}</Text>
-                <Text className="mb-1 text-sm text-gray-500">Items: {order.items.length}</Text>
-                <Text className="text-xs text-gray-500">
-                  Date: {new Date(order.createdAt).toLocaleDateString()} at {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Text>
+          )}
+          ListFooterComponent={() => 
+            isOrdersLoading ? (
+              <View className="py-4">
+                <ActivityIndicator size="small" color="#8B5CF6" />
               </View>
-            ))}
-          </>
-        ) : (
-          <View className="items-center justify-center flex-1 py-20">
-            <View className="items-center justify-center w-24 h-24 mb-4 bg-gray-100 rounded-full">
-              <Feather name="shopping-bag" size={32} color="#9CA3AF" />
-            </View>
-            <Text className="mb-2 text-xl font-bold text-gray-800">
-              No orders yet
-            </Text>
-            <Text className="px-8 text-center text-gray-500">
-              Your order history will appear here once you place your first order
-            </Text>
+            ) : null
+          }
+        />
+      ) : (
+        <View className="items-center justify-center flex-1 py-20">
+          <View className="items-center justify-center w-24 h-24 mb-4 bg-gray-100 rounded-full">
+            <Feather name="shopping-bag" size={32} color="#9CA3AF" />
           </View>
-        )}
+          <Text className="mb-2 text-xl font-bold text-gray-800">No orders yet</Text>
+          <Text className="px-8 text-center text-gray-500">
+            Your order history will appear here once you place your first order
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderBcoinItem = ({ item }: { item: any }) => (
+    <View className="p-4 mb-3 bg-white border border-gray-100 shadow-sm rounded-xl">
+      <View className="flex-row items-center justify-between mb-2">
+        <View className="flex-row items-center">
+          <View className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${
+            item.transaction_type === 'earned' ? 'bg-green-100' : 'bg-red-100'
+          }`}>
+            <Feather 
+              name={item.transaction_type === 'earned' ? 'plus' : 'minus'} 
+              size={16} 
+              color={item.transaction_type === 'earned' ? '#10B981' : '#EF4444'} 
+            />
+          </View>
+          <View>
+            <Text className="font-semibold text-gray-800">
+              {item.transaction_type === 'earned' ? 'Earned' : 'Redeemed'}
+            </Text>
+            <Text className="text-sm text-gray-500">{item.description}</Text>
+          </View>
+        </View>
+        <View className="items-end">
+          <Text className={`font-bold ${
+            item.transaction_type === 'earned' ? 'text-green-600' : 'text-red-600'
+          }`}>
+            {item.transaction_type === 'earned' ? '+' : '-'}{item.bcoins_earned} coins
+          </Text>
+          <Text className="text-xs text-gray-500">
+            {new Date(item.createdAt).toLocaleDateString()}
+          </Text>
+        </View>
       </View>
-    </ScrollView>
+      {item.amount_spend > 0 && (
+        <Text className="text-sm text-gray-500">Order Amount: ₹{item.amount_spend.toFixed(2)}</Text>
+      )}
+    </View>
+  );
+
+  const renderBcoinsContent = () => (
+    <View className="flex-1">
+      {isBcoinsLoading && bcoinTransactions.length === 0 ? (
+        <View className="items-center justify-center flex-1 py-20">
+          <ActivityIndicator size="large" color="#8B5CF6" />
+          <Text className="mt-4 text-gray-600">Loading bcoin history...</Text>
+        </View>
+      ) : bcoinsError ? (
+        <View className="items-center justify-center flex-1 py-20">
+          <Feather name="alert-triangle" size={32} color="#EF4444" />
+          <Text className="mt-4 mb-2 text-xl font-bold text-gray-800">Error loading bcoins</Text>
+          <Text className="px-8 text-center text-gray-500">{bcoinsError}</Text>
+        </View>
+      ) : bcoinTransactions.length > 0 ? (
+        <FlatList
+          data={bcoinTransactions}
+          renderItem={renderBcoinItem}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={{ padding: 16 }}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={onRefreshControl} />
+          }
+          onEndReached={loadMoreBcoins}
+          onEndReachedThreshold={0.1}
+          ListHeaderComponent={() => (
+            <View className="p-4 mb-6 bg-yellow-50 rounded-xl">
+              <Text className="mb-1 text-base font-semibold text-yellow-800">Bcoin History</Text>
+              <Text className="text-sm text-yellow-600">
+                Current Balance: {profile?.total_bcoins || 0} coins
+              </Text>
+              <Text className="mt-1 text-xs text-yellow-600">
+                1 coin = ₹2 discount on your next order
+              </Text>
+            </View>
+          )}
+          ListFooterComponent={() => 
+            isBcoinsLoading ? (
+              <View className="py-4">
+                <ActivityIndicator size="small" color="#8B5CF6" />
+              </View>
+            ) : null
+          }
+        />
+      ) : (
+        <View className="items-center justify-center flex-1 py-20">
+          <View className="items-center justify-center w-24 h-24 mb-4 bg-gray-100 rounded-full">
+            <Feather name="star" size={32} color="#9CA3AF" />
+          </View>
+          <Text className="mb-2 text-xl font-bold text-gray-800">No bcoin transactions</Text>
+          <Text className="px-8 text-center text-gray-500">
+            Start shopping to earn bcoins and see your transaction history here
+          </Text>
+        </View>
+      )}
+    </View>
   );
 
   return (
@@ -316,9 +496,7 @@ const Profile = () => {
           <TouchableOpacity
             onPress={() => setActiveTab('profile')}
             className={`flex-1 py-4 items-center border-b-3 ${
-              activeTab === 'profile'
-                ? 'border-purple-500'
-                : 'border-transparent'
+              activeTab === 'profile' ? 'border-purple-500' : 'border-transparent'
             }`}
           >
             <View className="flex-row items-center">
@@ -329,9 +507,7 @@ const Profile = () => {
               />
               <Text
                 className={`ml-2 font-bold ${
-                  activeTab === 'profile'
-                    ? 'text-purple-600'
-                    : 'text-gray-600'
+                  activeTab === 'profile' ? 'text-purple-600' : 'text-gray-600'
                 }`}
               >
                 Profile
@@ -342,9 +518,7 @@ const Profile = () => {
           <TouchableOpacity
             onPress={() => setActiveTab('orders')}
             className={`flex-1 py-4 items-center border-b-3 ${
-              activeTab === 'orders'
-                ? 'border-purple-500'
-                : 'border-transparent'
+              activeTab === 'orders' ? 'border-purple-500' : 'border-transparent'
             }`}
           >
             <View className="flex-row items-center">
@@ -355,19 +529,41 @@ const Profile = () => {
               />
               <Text
                 className={`ml-2 font-bold ${
-                  activeTab === 'orders'
-                    ? 'text-purple-600'
-                    : 'text-gray-600'
+                  activeTab === 'orders' ? 'text-purple-600' : 'text-gray-600'
                 }`}
               >
-                Order History
+                Orders
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setActiveTab('bcoins')}
+            className={`flex-1 py-4 items-center border-b-3 ${
+              activeTab === 'bcoins' ? 'border-purple-500' : 'border-transparent'
+            }`}
+          >
+            <View className="flex-row items-center">
+              <Feather
+                name="star"
+                size={18}
+                color={activeTab === 'bcoins' ? '#8B5CF6' : '#6B7280'}
+              />
+              <Text
+                className={`ml-2 font-bold ${
+                  activeTab === 'bcoins' ? 'text-purple-600' : 'text-gray-600'
+                }`}
+              >
+                Bcoins
               </Text>
             </View>
           </TouchableOpacity>
         </View>
       </View>
 
-      {activeTab === 'profile' ? renderProfileContent() : renderOrdersContent()}
+      {activeTab === 'profile' && renderProfileContent()}
+      {activeTab === 'orders' && renderOrdersContent()}
+      {activeTab === 'bcoins' && renderBcoinsContent()}
 
       <CustomAlert
         visible={alertConfig.visible}
