@@ -58,7 +58,6 @@ const Cart = () => {
     });
   };
 
-  // Fetch profile when component mounts
   useEffect(() => {
     const initProfile = async () => {
       try {
@@ -135,7 +134,7 @@ const Cart = () => {
 
   const calculateTotalWithDelivery = () => {
     const deliveryFee = deliveryOption === 'delivery' ? 50 : 0;
-    const bcoinDiscount = bcoinsToUse * 2; // 1 bcoin = ₹2 discount
+    const bcoinDiscount = bcoinsToUse * 2; 
     return Math.max(0, totalAmount + deliveryFee - bcoinDiscount);
   };
 
@@ -170,7 +169,7 @@ const Cart = () => {
 
     const orderData = {
       items: items.map(item => ({
-        product_id: item.id, // This was already correctly changed
+        product_id: item.id,
         name: item.name,
         price: item.price,
         quantity: item.quantity,
@@ -417,8 +416,8 @@ const Cart = () => {
               
               <View className="p-4 mb-4 border border-yellow-200 bg-yellow-50 rounded-xl">
                 <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-yellow-700 font-semibold">Available Bcoins</Text>
-                  <Text className="text-yellow-700 font-bold">{profile.total_bcoins}</Text>
+                  <Text className="font-semibold text-yellow-700">Available Bcoins</Text>
+                  <Text className="font-bold text-yellow-700">{profile.total_bcoins}</Text>
                 </View>
                 <Text className="text-xs text-yellow-600">1 Bcoin = ₹2 discount</Text>
               </View>
@@ -426,7 +425,7 @@ const Cart = () => {
               <View className="flex-row items-center justify-between p-3 border border-gray-200 bg-gray-50 rounded-xl">
                 <TouchableOpacity
                   onPress={() => handleBcoinChange(bcoinsToUse - 1)}
-                  className="bg-purple-500 rounded-full p-2"
+                  className="p-2 bg-purple-500 rounded-full"
                   disabled={bcoinsToUse <= 0}
                   style={{ opacity: bcoinsToUse <= 0 ? 0.5 : 1 }}
                 >
@@ -440,7 +439,7 @@ const Cart = () => {
 
                 <TouchableOpacity
                   onPress={() => handleBcoinChange(bcoinsToUse + 1)}
-                  className="bg-purple-500 rounded-full p-2"
+                  className="p-2 bg-purple-500 rounded-full"
                   disabled={bcoinsToUse >= (profile?.total_bcoins || 0) || bcoinsToUse >= Math.floor((totalAmount + (deliveryOption === 'delivery' ? 50 : 0)) / 2)}
                   style={{ 
                     opacity: (bcoinsToUse >= (profile?.total_bcoins || 0) || bcoinsToUse >= Math.floor((totalAmount + (deliveryOption === 'delivery' ? 50 : 0)) / 2)) ? 0.5 : 1 
@@ -452,7 +451,7 @@ const Cart = () => {
 
               {bcoinsToUse > 0 && (
                 <View className="p-3 mt-3 border border-green-200 bg-green-50 rounded-xl">
-                  <Text className="text-green-700 font-semibold text-center">
+                  <Text className="font-semibold text-center text-green-700">
                     You'll save ₹{(bcoinsToUse * 2).toFixed(2)} with {bcoinsToUse} bcoins
                   </Text>
                 </View>

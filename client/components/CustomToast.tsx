@@ -14,7 +14,7 @@ const CustomToast: React.FC<CustomToastProps> = ({
   visible,
   message,
   type = 'info',
-  duration = 3000,
+  duration = 2200,
   onHide,
 }) => {
   const translateY = useRef(new Animated.Value(-100)).current;
@@ -103,7 +103,7 @@ const CustomToast: React.FC<CustomToastProps> = ({
     >
       <View className="flex-row items-center">
         <Feather name={getIcon() as any} size={20} color="white" />
-        <Text className="text-white font-medium ml-3 flex-1">
+        <Text className="flex-1 ml-3 font-medium text-white">
           {message}
         </Text>
       </View>
