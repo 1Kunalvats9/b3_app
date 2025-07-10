@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Image, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useCart, CartItem } from '@/hooks/useCart';
 import { useOrders } from '@/hooks/useOrder';
+import { useProfile } from '@/hooks/useProfile';
 import initiateUpiPayment from "../../utils/upiPayment";
 import SuccessModal from '@/components/SuccessModal';
 import CustomAlert from '@/components/CustomAlert';
@@ -13,12 +14,14 @@ import { useAuth } from '@clerk/clerk-expo'; // <--- IMPORT THIS HOOK
 const Cart = () => {
   const { items, totalItems, totalAmount, removeFromCart, updateQuantity, clearCart } = useCart();
   const { createOrder, isLoading: isPlacingOrderAPI } = useOrders();
+  const { profile, fetchProfile } = useProfile();
   const { getToken } = useAuth(); // <--- GET THE getToken FUNCTION
 
   const [address, setAddress] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [deliveryOption, setDeliveryOption] = useState<'delivery' | 'takeaway'>('delivery');
   const [paymentOption, setPaymentOption] = useState<'online' | 'cod'>('online');
+  const [bcoinsToUse, setBcoinsToUse] = useState(0);
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
@@ -54,6 +57,21 @@ const Cart = () => {
       type
     });
   };
+
+  // Fetch profile when component mounts
+  useEffect(() => {
+    const initProfile = async () => {
+      try {
+        const token = await getToken();
+        if (token) {
+          await fetchProfile(token);
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      }
+    };
+    initProfile();
+  }, []);
 
   const handleRemoveItem = async (productId: string) => {
     const product = items.find(p => p.id === productId);
@@ -116,12 +134,21 @@ const Cart = () => {
   };
 
   const calculateTotalWithDelivery = () => {
-    return totalAmount + (deliveryOption === 'delivery' ? 50 : 0);
+    const deliveryFee = deliveryOption === 'delivery' ? 50 : 0;
+    const bcoinDiscount = bcoinsToUse * 2; // 1 bcoin = ₹2 discount
+    return Math.max(0, totalAmount + deliveryFee - bcoinDiscount);
   };
 
   const calculateCoinsToEarn = () => {
     const total = calculateTotalWithDelivery();
     return Math.floor(total / 100);
+  };
+
+  const handleBcoinChange = (value: number) => {
+    const maxBcoins = profile?.total_bcoins || 0;
+    const maxUsable = Math.floor((totalAmount + (deliveryOption === 'delivery' ? 50 : 0)) / 2);
+    const finalValue = Math.min(value, maxBcoins, maxUsable);
+    setBcoinsToUse(Math.max(0, finalValue));
   };
 
   const handleCheckout = async () => {
@@ -139,7 +166,7 @@ const Cart = () => {
     }
 
     const orderTotal = calculateTotalWithDelivery();
-    const bcoins_got = orderTotal / 100
+    const bcoins_got = Math.floor(orderTotal / 100);
 
     const orderData = {
       items: items.map(item => ({
@@ -154,6 +181,7 @@ const Cart = () => {
       paymentOption: paymentOption === 'cod' ? 'cash_on_delivery' : 'online',
       address: deliveryOption === 'delivery' ? address : 'takeaway',
       phoneNumber,
+      bcoins_used: bcoinsToUse,
     };
     setIsPlacingOrder(true);
 
@@ -189,6 +217,7 @@ const Cart = () => {
       // Reset form states
       setAddress('');
       setPhoneNumber('');
+      setBcoinsToUse(0);
       setDeliveryOption('delivery');
       setPaymentOption('online');
 
@@ -381,6 +410,56 @@ const Cart = () => {
             </View>
           </View>
 
+          {/* Bcoin Usage Section */}
+          {profile && profile.total_bcoins > 0 && (
+            <View className="p-6 mx-4 mt-6 bg-white border border-gray-100 shadow-sm rounded-2xl">
+              <Text className="mb-4 text-xl font-bold text-gray-800">Use Bcoins</Text>
+              
+              <View className="p-4 mb-4 border border-yellow-200 bg-yellow-50 rounded-xl">
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-yellow-700 font-semibold">Available Bcoins</Text>
+                  <Text className="text-yellow-700 font-bold">{profile.total_bcoins}</Text>
+                </View>
+                <Text className="text-xs text-yellow-600">1 Bcoin = ₹2 discount</Text>
+              </View>
+
+              <View className="flex-row items-center justify-between p-3 border border-gray-200 bg-gray-50 rounded-xl">
+                <TouchableOpacity
+                  onPress={() => handleBcoinChange(bcoinsToUse - 1)}
+                  className="bg-purple-500 rounded-full p-2"
+                  disabled={bcoinsToUse <= 0}
+                  style={{ opacity: bcoinsToUse <= 0 ? 0.5 : 1 }}
+                >
+                  <Feather name="minus" size={20} color="white" />
+                </TouchableOpacity>
+
+                <View className="items-center">
+                  <Text className="text-lg font-bold text-gray-800">{bcoinsToUse}</Text>
+                  <Text className="text-sm text-gray-500">Bcoins to use</Text>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => handleBcoinChange(bcoinsToUse + 1)}
+                  className="bg-purple-500 rounded-full p-2"
+                  disabled={bcoinsToUse >= (profile?.total_bcoins || 0) || bcoinsToUse >= Math.floor((totalAmount + (deliveryOption === 'delivery' ? 50 : 0)) / 2)}
+                  style={{ 
+                    opacity: (bcoinsToUse >= (profile?.total_bcoins || 0) || bcoinsToUse >= Math.floor((totalAmount + (deliveryOption === 'delivery' ? 50 : 0)) / 2)) ? 0.5 : 1 
+                  }}
+                >
+                  <Feather name="plus" size={20} color="white" />
+                </TouchableOpacity>
+              </View>
+
+              {bcoinsToUse > 0 && (
+                <View className="p-3 mt-3 border border-green-200 bg-green-50 rounded-xl">
+                  <Text className="text-green-700 font-semibold text-center">
+                    You'll save ₹{(bcoinsToUse * 2).toFixed(2)} with {bcoinsToUse} bcoins
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
           <View className="p-6 mx-4 mt-6 mb-8 bg-white border border-gray-100 shadow-sm rounded-2xl">
             <Text className="mb-4 text-xl font-bold text-gray-800">Order Summary</Text>
             <View className="flex-row items-center justify-between mb-3">
@@ -393,6 +472,14 @@ const Cart = () => {
                 {deliveryOption === 'delivery' ? '₹50.00' : '₹0.00'}
               </Text>
             </View>
+            {bcoinsToUse > 0 && (
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-base text-gray-600">Bcoin Discount</Text>
+                <Text className="text-base font-bold text-green-600">
+                  -₹{(bcoinsToUse * 2).toFixed(2)}
+                </Text>
+              </View>
+            )}
             <View className="pt-4 mt-4 border-t border-gray-200">
               <View className="flex-row items-center justify-between mb-4">
                 <Text className="text-xl font-bold text-gray-800">Total</Text>

@@ -193,8 +193,9 @@ router.post('/create-order', async (req, res) => {
         await newOrder.save();
         
         // Award bcoins (1% of order value)
-        if (total_amount > 0) {
-            const bcoinsEarned = Math.floor(total_amount * 0.01);
+        const originalAmount = total_amount + bcoins_used; // Add back bcoins to get original amount
+        if (originalAmount > 0) {
+            const bcoinsEarned = Math.floor(originalAmount / 100); // 1 bcoin per ₹100
             
             if (bcoinsEarned > 0) {
                 const bcoinId = uuidv4();
@@ -202,7 +203,7 @@ router.post('/create-order', async (req, res) => {
                     id: bcoinId,
                     user_id: userId,
                     order_id: orderId,
-                    amount_spend: total_amount,
+                    amount_spend: originalAmount,
                     bcoins_earned: bcoinsEarned,
                     transaction_type: 'earned',
                     description: `Earned from order ${orderId}`
@@ -215,6 +216,22 @@ router.post('/create-order', async (req, res) => {
                     { $inc: { total_bcoins: bcoinsEarned } }
                 );
             }
+        }
+        
+        // Record bcoin redemption if used
+        if (bcoins_used > 0) {
+            const bcoinRedemptionId = uuidv4();
+            const bcoinRedemptionRecord = new Bcoins({
+                id: bcoinRedemptionId,
+                user_id: userId,
+                order_id: orderId,
+                amount_spend: bcoins_used * 2, // Amount saved
+                bcoins_earned: bcoins_used, // Actually bcoins redeemed
+                transaction_type: 'redeemed',
+                description: `Redeemed for order ${orderId}`
+            });
+            
+            await bcoinRedemptionRecord.save();
         }
         
         res.status(201).json({
