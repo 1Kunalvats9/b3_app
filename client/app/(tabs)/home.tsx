@@ -105,7 +105,7 @@ const home = () => {
       <FlatList
         data={products}
         renderItem={renderProduct}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         numColumns={2}
         columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 16 }}
         refreshControl={

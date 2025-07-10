@@ -1,3 +1,4 @@
+// src/models/products.model.js (UPDATED)
 import mongoose from "mongoose";
 
 const productSchema = new mongoose.Schema(
@@ -38,16 +39,21 @@ const productSchema = new mongoose.Schema(
         },
         isOpen: {
             type: Boolean,
-            default: false // true for products sold by weight (kg/grams)
+            default: false 
         },
         unit: {
             type: String,
-            enum: ['piece', 'kg', 'gram', 'liter', 'ml'],
+            enum: ['piece', 'kg', 'gram', 'liter', 'ml', 'unit', 'other'],
             default: 'piece'
         },
         isActive: {
             type: Boolean,
             default: true
+        },
+        legacyBarcode: {
+            type: String,
+            unique: true, 
+            sparse: true  
         }
     },
     { timestamps: true }

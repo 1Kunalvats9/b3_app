@@ -5,17 +5,15 @@ import Products from '../models/products.model.js';
 import Users from '../models/users.model.js';
 import Bcoins from '../models/bcoin.model.js';
 import { v4 as uuidv4 } from 'uuid';
+import { sendSMSProgrammatic } from '../utils/sendSms.js';
 
 const router = express.Router();
 
-// All routes require authentication
 router.use(requireAuth());
 
-// Middleware to check admin role
 const requireAdmin = (req, res, next) => {
     const { userId } = req.auth;
     
-    // Check user role from database
     Users.findOne({ clerk_id: userId })
         .then(user => {
             if (!user || user.role !== 'admin') {
@@ -35,7 +33,6 @@ const requireAdmin = (req, res, next) => {
         });
 };
 
-// Alternative middleware that checks Clerk metadata directly
 const requireAdminClerk = (req, res, next) => {
     const { sessionClaims } = req.auth;
     if (sessionClaims?.publicMetadata?.role !== 'admin') {
@@ -47,7 +44,6 @@ const requireAdminClerk = (req, res, next) => {
     next();
 };
 
-// Get user's orders
 router.get('/my-orders', async (req, res) => {
     try {
         console.log("getting alll your orders")
@@ -86,7 +82,6 @@ router.get('/my-orders', async (req, res) => {
     }
 });
 
-// Get single order
 router.get('/:id', async (req, res) => {
     try {
         const { userId } = req.auth;
@@ -120,7 +115,6 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// Create new order
 router.post('/create-order', async (req, res) => {
     try {
         const { userId } = req.auth;
@@ -139,7 +133,6 @@ router.post('/create-order', async (req, res) => {
             });
         }
         
-        // Validate and calculate total
         let total_amount = 0;
         const validatedItems = [];
         
@@ -172,7 +165,6 @@ router.post('/create-order', async (req, res) => {
                 unit: product.unit
             });
             
-            // Update stock for non-open products
             if (!product.isOpen) {
                 await Products.findOneAndUpdate(
                     { id: product.id },
@@ -181,7 +173,6 @@ router.post('/create-order', async (req, res) => {
             }
         }
         
-        // Apply bcoins discount
         if (bcoins_used > 0) {
             const user = await Users.findOne({ clerk_id: userId });
             if (!user || user.total_bcoins < bcoins_used) {
@@ -193,7 +184,6 @@ router.post('/create-order', async (req, res) => {
             
             total_amount = Math.max(0, total_amount - bcoins_used);
             
-            // Deduct bcoins from user
             await Users.findOneAndUpdate(
                 { clerk_id: userId },
                 { $inc: { total_bcoins: -bcoins_used } }
@@ -211,15 +201,14 @@ router.post('/create-order', async (req, res) => {
             phone_number,
             payment_mode,
             bcoins_used,
-            estimated_delivery: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
+            estimated_delivery: new Date(Date.now() + 24 * 60 * 60 * 1000)
         });
         
         await newOrder.save();
         
-        // Award bcoins (1% of order value)
-        const originalAmount = total_amount + bcoins_used; // Add back bcoins to get original amount
+        const originalAmount = total_amount + bcoins_used;
         if (originalAmount > 0) {
-            const bcoinsEarned = Math.floor(originalAmount / 100); // 1 bcoin per ₹100
+            const bcoinsEarned = Math.floor(originalAmount / 100);
             
             if (bcoinsEarned > 0) {
                 const bcoinId = uuidv4();
@@ -242,20 +231,39 @@ router.post('/create-order', async (req, res) => {
             }
         }
         
-        // Record bcoin redemption if used
         if (bcoins_used > 0) {
             const bcoinRedemptionId = uuidv4();
             const bcoinRedemptionRecord = new Bcoins({
                 id: bcoinRedemptionId,
                 user_id: userId,
                 order_id: orderId,
-                amount_spend: bcoins_used * 2, // Amount saved
-                bcoins_earned: bcoins_used, // Actually bcoins redeemed
+                amount_spend: bcoins_used * 2,
+                bcoins_earned: bcoins_used,
                 transaction_type: 'redeemed',
                 description: `Redeemed for order ${orderId}`
             });
             
             await bcoinRedemptionRecord.save();
+        }
+
+        if (phone_number) {
+            try {
+                const customerMessage = `Your order ${newOrder.id} for ₹${newOrder.total_amount.toFixed(2)} has been placed successfully! Estimated delivery: ${newOrder.estimated_delivery.toDateString()}. Thank you for shopping with us!`;
+                await sendSMSProgrammatic(phone_number, customerMessage);
+            } catch (smsError) {
+                console.error('Failed to send SMS to customer for new order:', smsError.message);
+            }
+        }
+
+        if (process.env.OWNER_PHONE_NUMBER) {
+            try {
+                console.log('sending mssg to owner')
+                const ownerPhoneNumber = `+91${process.env.OWNER_PHONE_NUMBER}`;
+                const ownerMessage = `New order #${newOrder.id} placed! Total: ₹${newOrder.total_amount.toFixed(2)}. Customer phone: ${newOrder.phone_number}. Please check.`;
+                await sendSMSProgrammatic(ownerPhoneNumber, ownerMessage);
+            } catch (ownerSmsError) {
+                console.error('Failed to send SMS to owner for new order:', ownerSmsError.message);
+            }
         }
         
         res.status(201).json({
@@ -272,8 +280,6 @@ router.post('/create-order', async (req, res) => {
     }
 });
 
-// Admin routes
-// Get all orders (Admin only)
 router.get('/', requireAdmin, async (req, res) => {
     try {
         const { page = 1, limit = 20, status, user_id } = req.query;
@@ -309,7 +315,6 @@ router.get('/', requireAdmin, async (req, res) => {
     }
 });
 
-// Update order status (Admin only)
 router.patch('/:id/status', requireAdmin, async (req, res) => {
     try {
         console.log('entered order status change')
@@ -337,6 +342,15 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
             });
         }
         console.log("order updated")
+
+        if (updatedOrder.phone_number) {
+            try {
+                const statusUpdateMessage = `Your order ${updatedOrder.id} status has been updated to: ${status.replace(/_/g, ' ').toUpperCase()}.`;
+                await sendSMSProgrammatic(updatedOrder.phone_number, statusUpdateMessage);
+            } catch (smsError) {
+                console.error('Failed to send SMS for order status update:', smsError.message);
+            }
+        }
         
         res.json({
             success: true,
