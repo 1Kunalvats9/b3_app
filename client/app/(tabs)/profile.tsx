@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, RefreshControl, ActivityIndicator, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth, useUser as useClerkUser } from '@clerk/clerk-expo';
+import { useAuth, useUser as useClerkUser, useUser } from '@clerk/clerk-expo';
 import { Feather } from '@expo/vector-icons';
 import { Redirect } from 'expo-router';
 
@@ -105,7 +105,7 @@ const Profile = () => {
 
     fetchTabData();
   }, [activeTab]);
-
+  const {user} = useUser();
   const handleSignOut = async () => {
     showAlert(
       'Sign Out',
@@ -247,10 +247,10 @@ const Profile = () => {
                 </TouchableOpacity>
               </View>
               <Text className="mt-6 text-2xl font-bold text-gray-800">
-                {profile?.name || clerkUser?.fullName || 'User'}
+                {profile?.name || user?.fullName || 'User'}
               </Text>
               <Text className="mt-2 text-base text-gray-500">
-                {profile?.email || clerkUser?.primaryEmailAddress?.emailAddress}
+                {profile?.email || user?.primaryEmailAddress?.emailAddress}
               </Text>
               {profile?.phone && (
                 <Text className="mt-1 text-sm text-gray-500">
