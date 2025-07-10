@@ -1,12 +1,7 @@
-import { View, Text } from 'react-native'
-import React from 'react'
+import { Redirect } from 'expo-router';
 
-const index = () => {
-  return (
-    <View>
-      <Text>Admin</Text>
-    </View>
-  )
+const AdminIndex = () => {
+  return <Redirect href="/(tabs)/admin/orders" />;
 }
 
-export default index
+export default AdminIndex;
