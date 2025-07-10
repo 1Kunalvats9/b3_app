@@ -9,7 +9,7 @@ import initiateUpiPayment from "../../utils/upiPayment";
 import SuccessModal from '@/components/SuccessModal';
 import CustomAlert from '@/components/CustomAlert';
 import CustomToast from '@/components/CustomToast';
-import { useAuth } from '@clerk/clerk-expo'; // <--- IMPORT THIS HOOK
+import { useAuth } from '@clerk/clerk-expo'; 
 
 const Cart = () => {
   const { items, totalItems, totalAmount, removeFromCart, updateQuantity, clearCart } = useCart();

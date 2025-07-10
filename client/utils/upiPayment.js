@@ -1,4 +1,3 @@
-// src/utils/upiPayment.js
 import { Linking, Alert } from 'react-native'; 
 
 const initiateUpiPayment = async (amount) => {
