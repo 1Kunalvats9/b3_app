@@ -247,10 +247,10 @@ const Profile = () => {
                 </TouchableOpacity>
               </View>
               <Text className="mt-6 text-2xl font-bold text-gray-800">
-                {profile?.name || user?.fullName || 'User'}
+                {profile?.name || clerkUser?.fullName || clerkUser?.firstName || 'User'}
               </Text>
               <Text className="mt-2 text-base text-gray-500">
-                {profile?.email || user?.primaryEmailAddress?.emailAddress}
+                {profile?.email || clerkUser?.primaryEmailAddress?.emailAddress || clerkUser?.emailAddresses?.[0]?.emailAddress}
               </Text>
               {profile?.phone && (
                 <Text className="mt-1 text-sm text-gray-500">
