@@ -128,8 +128,8 @@ export const useProfile = create<ProfileState>((set, get) => ({
 
   // Fetch user profile
   fetchProfile: async (token: string) => {
-    // Don't fetch if already loading or if profile exists and no error
-    if (get().isProfileLoading || (get().profile && !get().profileError)) {
+    // Don't fetch if already loading
+    if (get().isProfileLoading) {
       return;
     }
 
@@ -156,6 +156,13 @@ export const useProfile = create<ProfileState>((set, get) => ({
       }
     } catch (error: any) {
       console.error('Error fetching profile:', error);
+      
+      // More detailed error logging
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+      }
+      
       set({
         profileError: error.response?.data?.message || error.message || 'Failed to fetch profile',
         isProfileLoading: false,

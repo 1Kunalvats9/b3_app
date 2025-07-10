@@ -71,9 +71,12 @@ const Profile = () => {
   // Initial data fetch
   useEffect(() => {
     const initializeProfile = async () => {
+      if (!isSignedIn) return;
+      
       try {
         const token = await getToken();
         if (token) {
+          console.log('Fetching profile with token...');
           await fetchProfile(token);
         }
       } catch (error) {
@@ -81,9 +84,7 @@ const Profile = () => {
       }
     };
 
-    if (isSignedIn) {
-      initializeProfile();
-    }
+    initializeProfile();
   }, [isSignedIn]);
 
   // Fetch data based on active tab

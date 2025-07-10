@@ -11,20 +11,27 @@ router.use(requireAuth());
 // Get current user profile
 router.get('/profile', async (req, res) => {
     try {
-        const { userId } = req.auth;
+        const { userId, sessionClaims } = req.auth;
         
         let user = await Users.findOne({ clerk_id: userId });
         
         if (!user) {
             // Create user if doesn't exist
-            const { sessionClaims } = req.auth;
+            console.log('Creating new user with sessionClaims:', sessionClaims);
+            
+            // Extract email from sessionClaims
+            const email = sessionClaims?.email || sessionClaims?.email_addresses?.[0]?.email_address || 'unknown@email.com';
+            const name = sessionClaims?.name || sessionClaims?.first_name || sessionClaims?.full_name || email.split('@')[0];
+            
             user = new Users({
                 clerk_id: userId,
-                email: sessionClaims.email,
-                name: sessionClaims.name || sessionClaims.email,
+                email: email,
+                name: name,
                 role: sessionClaims.metadata?.role || 'user'
             });
+            
             await user.save();
+            console.log('New user created successfully:', user);
         }
         
         res.json({
@@ -32,6 +39,7 @@ router.get('/profile', async (req, res) => {
             data: user
         });
     } catch (error) {
+        console.error('Profile fetch error:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching user profile',
