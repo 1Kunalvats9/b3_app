@@ -29,9 +29,11 @@ const _layout = () => {
         <Tabs.Screen
                 name='admin'
                 options={{
+                    headerShown: false,
                     title: 'Admin',
                     tabBarIcon: ({ color, size }) => <Feather size={size} color={color} name='settings' />,
                     href: isAdmin ? '/(tabs)/admin' : null,
+                    tabBarActiveTintColor:'#16a34a'
                 }}
             />
         <Tabs.Screen 

@@ -13,8 +13,32 @@ router.use(requireAuth());
 
 // Middleware to check admin role
 const requireAdmin = (req, res, next) => {
+    const { userId } = req.auth;
+    
+    // Check user role from database
+    Users.findOne({ clerk_id: userId })
+        .then(user => {
+            if (!user || user.role !== 'admin') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Admin access required'
+                });
+            }
+            next();
+        })
+        .catch(error => {
+            console.error('Error checking admin role:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Error verifying admin access'
+            });
+        });
+};
+
+// Alternative middleware that checks Clerk metadata directly
+const requireAdminClerk = (req, res, next) => {
     const { sessionClaims } = req.auth;
-    if (sessionClaims?.metadata?.role !== 'admin') {
+    if (sessionClaims?.publicMetadata?.role !== 'admin') {
         return res.status(403).json({
             success: false,
             message: 'Admin access required'
