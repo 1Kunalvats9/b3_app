@@ -164,15 +164,12 @@ const AdminOrders = () => {
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     setIsUpdatingStatus(true);
-    console.log(`UPDATE STATUS: Attempting to update order ${orderId} to status ${newStatus}`);
     try {
       const token = await getToken();
       if (!token) {
-        console.log("UPDATE STATUS: Authentication token missing.");
         throw new Error('Authentication required');
       }
 
-      console.log(`UPDATE STATUS: Sending PATCH request to ${BACKEND_BASE_URL}/api/orders/${orderId}/status`);
       const response = await fetch(`${BACKEND_BASE_URL}/api/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: {
@@ -181,11 +178,8 @@ const AdminOrders = () => {
         },
         body: JSON.stringify({ status: newStatus }),
       });
-      console.log("UPDATE STATUS: Request sent, waiting for response.");
       
       const data = await response.json();
-      console.log('UPDATE STATUS: Response status:', response.status);
-      console.log('UPDATE STATUS: Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.message || 'Failed to update order status');
@@ -200,7 +194,6 @@ const AdminOrders = () => {
       console.log('UPDATE STATUS: Status update successful.');
 
     } catch (error) {
-      console.error('UPDATE STATUS: Error updating order status:', error);
       showToast(error instanceof Error ? error.message : 'Failed to update order status', 'error');
     } finally {
       setIsUpdatingStatus(false);
@@ -208,9 +201,7 @@ const AdminOrders = () => {
     }
   };
 
-  // Modified handleStatusUpdate to receive the order directly
   const handleStatusUpdate = (orderToUpdate: Order, newStatus: string) => {
-    console.log(`HANDLE STATUS UPDATE: Function called for order: ${orderToUpdate.id}, newStatus: ${newStatus}`);
     
     const statusLabel = statusOptions.find(s => s.value === newStatus)?.label || newStatus;
     
@@ -220,15 +211,12 @@ const AdminOrders = () => {
       [
         { text: 'Cancel', style: 'cancel', onPress: () => {
             console.log("HANDLE STATUS UPDATE: Alert cancelled.");
-            // Important: Make sure your CustomAlert calls onClose when "Cancel" is pressed.
         }},
         {
           text: 'Update',
           onPress: () => {
             console.log("HANDLE STATUS UPDATE: Alert 'Update' pressed. Calling updateOrderStatus.");
             updateOrderStatus(orderToUpdate.id, newStatus);
-            // Important: Make sure your CustomAlert calls onClose when "Update" is pressed.
-            // If not, you might want to call setAlertConfig(prev => ({...prev, visible: false})) here.
           },
         },
       ]

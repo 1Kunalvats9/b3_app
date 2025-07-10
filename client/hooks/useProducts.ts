@@ -71,7 +71,6 @@ export const useProducts = create<ProductState>((set, get) => ({
     const currentQueryParams = get().queryParams;
     const mergedParams = { ...currentQueryParams, ...params };
     
-    // If it's a new search/category, reset to page 1 and clear existing products
     const isNewQuery = params?.search !== undefined || params?.category !== undefined;
     if (isNewQuery && params?.page === 1) {
       set({ products: [] });
@@ -86,7 +85,6 @@ export const useProducts = create<ProductState>((set, get) => ({
         const newProducts = response.data.data;
         const existingProducts = get().products;
         
-        // If it's page 1 or a new query, replace products; otherwise append
         const finalProducts = (mergedParams.page === 1 || isNewQuery) 
           ? newProducts 
           : [...existingProducts, ...newProducts];
@@ -114,7 +112,7 @@ export const useProducts = create<ProductState>((set, get) => ({
   saveProduct: async (productData: Product, token: string): Promise<Product> => {
     set({ loading: true, error: null });
     try {
-      const isUpdate = !!productData._id; // Determine if it's an update based on MongoDB's _id
+      const isUpdate = !!productData._id;
       
       let url: string;
       let method: 'POST' | 'PUT';
