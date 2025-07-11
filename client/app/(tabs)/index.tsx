@@ -1,8 +1,7 @@
-import { FlatList, Text, TextInput, View, TouchableOpacity, RefreshControl } from 'react-native'
+import { FlatList, Text, TextInput, View, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native'
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useAuth } from '@clerk/clerk-expo';
-import { useProducts } from '@/hooks/useProducts';
+import { useProducts } from '@/hooks/useProducts'; // Updated import
 import { useCart } from '@/hooks/useCart';
 import { Feather } from '@expo/vector-icons';
 import CategoryScroll from '@/components/CategoryScroll';
@@ -10,64 +9,51 @@ import ProductCard from '@/components/ProductCard';
 import { useNavigation } from '@react-navigation/native';
 
 const home = () => {
-  const { products, loading, fetchProducts, pagination } = useProducts();
+  // Destructure the new states and functions from useProducts
+  const { products, pagination, loading, error, fetchProducts, fetchSearchSuggestions, searchSuggestions, refreshProducts } = useProducts();
   const { totalItems } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeSearchQuery, setActiveSearchQuery] = useState("");
+  const [activeSearchQuery, setActiveSearchQuery] = useState(""); // This will drive the main product list filter
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  // `searchResults` state is no longer needed; `searchSuggestions` from store will be used.
+  // const [searchResults, setSearchResults] = useState<any[]>([]); // REMOVE THIS LINE
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'newest'>('newest');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showSortOptions, setShowSortOptions] = useState(false);
   const navigation = useNavigation<any>();
-  
-  // Use ref to store the debounce timeout
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Memoize filtered search results for better performance
-  const filteredSearchResults = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    
-    const query = searchQuery.toLowerCase();
-    return products
-      .filter(product => 
-        product.name.toLowerCase().includes(query) ||
-        product.category.toLowerCase().includes(query)
-      )
-      .slice(0, 8) // Increased from 5 to 8 for better UX
-      .sort((a, b) => {
-        // Prioritize exact matches and name starts
-        const aName = a.name.toLowerCase();
-        const bName = b.name.toLowerCase();
-        
-        if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
-        if (!aName.startsWith(query) && bName.startsWith(query)) return 1;
-        
-        return aName.localeCompare(bName);
-      });
-  }, [searchQuery, products]);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Optimized search effect with faster debounce
+  // Initial fetch when component mounts or filters change
   useEffect(() => {
-    // Clear previous timeout
+    const timeoutId = setTimeout(() => {
+      fetchProducts({
+        search: activeSearchQuery || undefined,
+        category: selectedCategory || undefined,
+        page: 1, // Always reset to page 1 when filters or search changes
+        sortBy: sortBy === 'newest' ? 'createdAt' : sortBy === 'price' ? 'discountedPrice' : 'name',
+        sortOrder: sortOrder
+      });
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [selectedCategory, activeSearchQuery, sortBy, sortOrder, fetchProducts]);
+
+  // Effect for search suggestions (using backend API)
+  useEffect(() => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
 
     if (searchQuery.trim().length > 0) {
-      // Immediate update for better responsiveness
-      setSearchResults(filteredSearchResults);
-      setShowSearchResults(true);
-      
-      // Very short debounce for real-time feel
       searchTimeoutRef.current = setTimeout(() => {
-        setSearchResults(filteredSearchResults);
-      }, 100); // Reduced from 300ms to 100ms
+        fetchSearchSuggestions(searchQuery); // Call backend for suggestions
+        setShowSearchResults(true);
+      }, 300); // Debounce for search suggestions
     } else {
       setShowSearchResults(false);
-      setSearchResults([]);
     }
 
     return () => {
@@ -75,47 +61,36 @@ const home = () => {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [filteredSearchResults, searchQuery]);
-
-  // Fetch products when filters change
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchProducts({
-        search: activeSearchQuery || undefined,
-        category: selectedCategory || undefined,
-        page: 1,
-        sortBy: sortBy === 'newest' ? 'createdAt' : sortBy === 'price' ? 'discountedPrice' : 'name',
-        sortOrder: sortOrder
-      });
-    }, 300); // Keep this timeout for actual API calls
-
-    return () => clearTimeout(timeoutId);
-  }, [selectedCategory, activeSearchQuery, sortBy, sortOrder]);
+  }, [searchQuery, fetchSearchSuggestions]);
 
   const handleCategorySelect = (category: string | null) => {
     setSelectedCategory(category);
-    setActiveSearchQuery("");
-    setSearchQuery("");
+    setActiveSearchQuery(""); // Clear main search when category is selected
+    setSearchQuery(""); // Clear search input
     setShowSearchResults(false);
+    // fetchProducts is triggered by useEffect on activeSearchQuery/selectedCategory change
   };
 
   const handleSearchSubmit = () => {
-    setActiveSearchQuery(searchQuery);
-    setSelectedCategory(null);
+    setActiveSearchQuery(searchQuery); // Apply the search query to the main product list
+    setSelectedCategory(null); // Clear category filter when submitting a search
     setShowSearchResults(false);
+    // fetchProducts is triggered by useEffect on activeSearchQuery change
   };
 
   const handleSearchResultSelect = (productName: string) => {
     setSearchQuery(productName);
-    setActiveSearchQuery(productName);
+    setActiveSearchQuery(productName); // Set active search from suggestion
     setSelectedCategory(null);
     setShowSearchResults(false);
+    // fetchProducts is triggered by useEffect on activeSearchQuery change
   };
 
   const clearSearch = () => {
     setSearchQuery("");
     setActiveSearchQuery("");
     setShowSearchResults(false);
+    // fetchProducts is triggered by useEffect on activeSearchQuery change
   };
 
   const handleRefresh = useCallback(async () => {
@@ -123,12 +98,13 @@ const home = () => {
     await fetchProducts({
       search: activeSearchQuery || undefined,
       category: selectedCategory || undefined,
-      page: 1,
+      page: 1, // Always refresh from page 1
       sortBy: sortBy === 'newest' ? 'createdAt' : sortBy === 'price' ? 'discountedPrice' : 'name',
       sortOrder: sortOrder
     });
     setRefreshing(false);
-  }, [selectedCategory, activeSearchQuery, sortBy, sortOrder]);
+  }, [activeSearchQuery, selectedCategory, sortBy, sortOrder, fetchProducts]);
+
 
   const handleLoadMore = () => {
     if (!loading && pagination?.hasNext) {
@@ -142,38 +118,56 @@ const home = () => {
     }
   };
 
-  const sortOptions = [
-    { key: 'newest', label: 'Newest First', sortBy: 'createdAt', sortOrder: 'desc' },
-    { key: 'oldest', label: 'Oldest First', sortBy: 'createdAt', sortOrder: 'asc' },
-    { key: 'price-low', label: 'Price: Low to High', sortBy: 'discountedPrice', sortOrder: 'asc' },
-    { key: 'price-high', label: 'Price: High to Low', sortBy: 'discountedPrice', sortOrder: 'desc' },
-    { key: 'name-az', label: 'Name: A to Z', sortBy: 'name', sortOrder: 'asc' },
-    { key: 'name-za', label: 'Name: Z to A', sortBy: 'name', sortOrder: 'desc' },
-  ];
-
-  const handleSortSelect = (option: any) => {
-    setSortBy(option.sortBy);
-    setSortOrder(option.sortOrder);
-    setShowSortOptions(false);
-  };
-
-  const getCurrentSortLabel = () => {
-    const current = sortOptions.find(option => 
-      option.sortBy === (sortBy === 'newest' ? 'createdAt' : sortBy === 'price' ? 'discountedPrice' : 'name') && 
-      option.sortOrder === sortOrder
-    );
-    return current?.label || 'Sort';
-  };
-
   const renderProduct = ({ item, index }: { item: any; index: number }) => (
     <View style={{ width: '48%' }}>
       <ProductCard product={item} key={`${item._id}-${index}`} />
     </View>
   );
 
+  const renderFooter = () => {
+    if (loading) {
+      return (
+        <View className="py-4">
+          <ActivityIndicator size="large" color="#10B981" />
+        </View>
+      );
+    }
+    if (!pagination?.hasNext && products.length > 0 && !loading) {
+      return (
+        <View className="items-center py-4">
+          <Text className="text-sm text-gray-500">No more products to load.</Text>
+        </View>
+      );
+    }
+    return null;
+  };
+
+  // Initial loading state when products array is empty
+  if (loading && products.length === 0) {
+    return (
+      <SafeAreaView className='items-center justify-center flex-1 bg-gray-50'>
+        <ActivityIndicator size="large" color="#10B981" />
+        <Text className="mt-2 text-gray-600">Loading products...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  // Error state if initial load failed
+  if (error && products.length === 0) {
+    return (
+      <SafeAreaView className='items-center justify-center flex-1 bg-gray-50'>
+        <Feather name="alert-triangle" size={48} color="#EF4444" />
+        <Text className="mt-4 text-lg font-bold text-center text-red-500">Error Loading Products</Text>
+        <Text className="px-4 mt-2 text-center text-gray-600">{error}</Text>
+        <TouchableOpacity onPress={handleRefresh} className="px-4 py-2 mt-4 bg-blue-500 rounded-lg">
+          <Text className="font-semibold text-white">Try Again</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView className='flex-1 bg-gray-50'>
-      {/* Header with Cart */}
       <View className="flex-row items-center justify-between px-4 py-2 bg-white border-b border-gray-100">
         <Text className="text-xl font-bold text-gray-800">B3</Text>
         <TouchableOpacity
@@ -192,9 +186,7 @@ const home = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Search and Sort Section */}
       <View className='px-4 mt-4 space-y-3'>
-        {/* Search Bar */}
         <View className='relative'>
           <View className='flex flex-row items-center w-full gap-3 px-4 py-3 border border-gray-200 rounded-full bg-gray-50'>
             <Feather name='search' size={20} color='#9ca3af' />
@@ -220,32 +212,31 @@ const home = () => {
             )}
           </View>
 
-          {/* Enhanced Search Results Dropdown */}
-          {showSearchResults && searchResults.length > 0 && (
-            <View className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-80">
+          {showSearchResults && searchSuggestions.length > 0 && (
+            <View className="absolute left-0 right-0 z-50 mt-2 bg-white border border-gray-200 shadow-lg top-full rounded-xl max-h-80">
               <View className="px-4 py-3 border-b border-gray-100">
                 <Text className="text-sm font-semibold text-gray-600">
-                  {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} found
+                  {searchSuggestions.length} result{searchSuggestions.length !== 1 ? 's' : ''} found
                 </Text>
               </View>
               <FlatList
-                data={searchResults}
+                data={searchSuggestions} // Use searchSuggestions from the store
                 keyExtractor={(item, index) => `search-${item._id}-${index}`}
                 showsVerticalScrollIndicator={false}
                 renderItem={({ item, index }) => (
                   <TouchableOpacity
                     onPress={() => handleSearchResultSelect(item.name)}
                     className={`px-4 py-3 flex-row items-center justify-between ${
-                      index !== searchResults.length - 1 ? 'border-b border-gray-50' : ''
+                      index !== searchSuggestions.length - 1 ? 'border-b border-gray-50' : ''
                     }`}
                     activeOpacity={0.7}
                   >
-                    <View className="flex-1 flex-row items-center">
-                      <View className="w-8 h-8 bg-gray-100 rounded-lg items-center justify-center mr-3">
+                    <View className="flex-row items-center flex-1">
+                      <View className="items-center justify-center w-8 h-8 mr-3 bg-gray-100 rounded-lg">
                         <Feather name="package" size={14} color="#9CA3AF" />
                       </View>
                       <View className="flex-1">
-                        <Text className="text-gray-800 font-medium" numberOfLines={1}>
+                        <Text className="font-medium text-gray-800" numberOfLines={1}>
                           {item.name}
                         </Text>
                         <Text className="text-xs text-gray-500 capitalize">
@@ -270,15 +261,14 @@ const home = () => {
             </View>
           )}
 
-          {/* No Results Message */}
-          {showSearchResults && searchQuery.length > 0 && searchResults.length === 0 && (
-            <View className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
-              <View className="px-4 py-6 items-center">
+          {showSearchResults && searchQuery.length > 0 && searchSuggestions.length === 0 && (
+            <View className="absolute left-0 right-0 z-50 mt-2 bg-white border border-gray-200 shadow-lg top-full rounded-xl">
+              <View className="items-center px-4 py-6">
                 <Feather name="search" size={32} color="#9CA3AF" />
-                <Text className="text-gray-500 mt-2 text-center">
+                <Text className="mt-2 text-center text-gray-500">
                   No products found for "{searchQuery}"
                 </Text>
-                <Text className="text-gray-400 text-sm mt-1 text-center">
+                <Text className="mt-1 text-sm text-center text-gray-400">
                   Try searching with different keywords
                 </Text>
               </View>
@@ -286,39 +276,13 @@ const home = () => {
           )}
         </View>
 
-        {/* Sort Options */}
         <View className="flex-row items-center justify-between">
           <View className="flex-1">
             {(activeSearchQuery || selectedCategory) && (
               <Text className="text-sm text-gray-600">
                 {activeSearchQuery ? `Searching for "${activeSearchQuery}"` : `Category: ${selectedCategory}`}
-                {products.length > 0 && ` (${products.length} items)`}
+                {pagination?.totalItems !== undefined && ` (${pagination.totalItems} items)`}
               </Text>
-            )}
-          </View>
-          
-          <View className="relative">
-            <TouchableOpacity
-              onPress={() => setShowSortOptions(!showSortOptions)}
-              className="flex-row items-center px-3 py-2 bg-white border border-gray-200 rounded-lg"
-            >
-              <Feather name="filter" size={16} color="#6B7280" />
-              <Text className="ml-2 text-sm text-gray-700">{getCurrentSortLabel()}</Text>
-              <Feather name="chevron-down" size={16} color="#6B7280" />
-            </TouchableOpacity>
-
-            {showSortOptions && (
-              <View className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-40 min-w-[200px]">
-                {sortOptions.map((option, index) => (
-                  <TouchableOpacity
-                    key={option.key}
-                    onPress={() => handleSortSelect(option)}
-                    className={`px-4 py-3 ${index !== sortOptions.length - 1 ? 'border-b border-gray-100' : ''}`}
-                  >
-                    <Text className="text-gray-800">{option.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
             )}
           </View>
         </View>
@@ -351,9 +315,21 @@ const home = () => {
           paddingBottom: 20,
           marginTop: 6,
         }}
+        ListFooterComponent={renderFooter}
+        ListEmptyComponent={
+          !loading && products.length === 0 && !error ? (
+            <View className="items-center py-10">
+              <Feather name="box" size={48} color="#9CA3AF" />
+              <Text className="mt-4 text-lg text-gray-500">No products found.</Text>
+              <Text className="text-sm text-gray-400">
+                Try adjusting your search or filters.
+              </Text>
+            </View>
+          ) : null
+        }
       />
     </SafeAreaView>
   );
 };
 
-export default home
+export default home;

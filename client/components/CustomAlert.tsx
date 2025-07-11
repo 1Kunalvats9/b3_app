@@ -63,25 +63,25 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
       animationType="none"
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-black/50 items-center justify-center px-4">
+      <View className="items-center justify-center flex-1 px-4 bg-black/50">
         <Animated.View
           style={{
             transform: [{ scale: scaleAnim }],
           }}
-          className="bg-white rounded-2xl p-6 w-full max-w-sm"
+          className="w-full max-w-sm p-6 bg-white rounded-2xl"
         >
           {/* Header */}
           <View className="items-center mb-4">
-            <View className="w-16 h-16 bg-blue-100 rounded-full items-center justify-center mb-3">
+            <View className="items-center justify-center w-16 h-16 mb-3 bg-blue-100 rounded-full">
               <Feather name="info" size={24} color="#3B82F6" />
             </View>
-            <Text className="text-xl font-bold text-gray-800 text-center">
+            <Text className="text-xl font-bold text-center text-gray-800">
               {title}
             </Text>
           </View>
 
           {/* Message */}
-          <Text className="text-gray-600 text-center mb-6 leading-5">
+          <Text className="mb-6 leading-5 text-center text-gray-600">
             {message}
           </Text>
 
@@ -94,7 +94,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
                   button.onPress();
                   onClose();
                 }}
-                className={`py-3 px-4 rounded-xl ${getButtonStyle(button.style)}`}
+                className={`py-3 px-4 rounded-xl mb-2 ${getButtonStyle(button.style)}`}
               >
                 <Text className={`text-center font-semibold ${getButtonTextStyle(button.style)}`}>
                   {button.text}

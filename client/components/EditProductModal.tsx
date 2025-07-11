@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  Modal, 
-  TextInput, 
-  TouchableOpacity, 
-  Image, 
+import {
+  View,
+  Text,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  Image,
   Alert,
   ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator'; 
+import * as ImageManipulator from 'expo-image-manipulator';
 
 import { Product } from '@/hooks/useProducts';
 import { useAuth } from '@clerk/clerk-expo';
@@ -26,7 +26,7 @@ interface EditProductModalProps {
   visible: boolean;
   product: Product | null;
   onClose: () => void;
-  onProductUpdated: () => void; 
+  onProductUpdated: () => void;
 }
 
 const EditProductModal: React.FC<EditProductModalProps> = ({ visible, product, onClose, onProductUpdated }) => {
@@ -38,17 +38,20 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ visible, product, o
     price: '',
     quantity: '',
     image: '',
-    originalPrice: '', 
-    unit: '', 
-    isActive: true, 
-    isOpen: false, 
-    description: '', 
+    originalPrice: '',
+    unit: '',
+    isActive: true,
+    isOpen: false,
+    description: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const { getToken } = useAuth();
+
+  // Define available units
+  const availableUnits = ['piece', 'kg', 'gram', 'liter', 'ml'];
 
   useEffect(() => {
     if (visible) {
@@ -85,7 +88,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ visible, product, o
       setNewCategoryName('');
       setShowNewCategoryInput(false);
     }
-  }, [product, categories]); 
+  }, [product, categories]);
 
   const uploadToCloudinary = async (imageUri: string) => {
     setIsUploading(true);
@@ -93,13 +96,13 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ visible, product, o
       const formData = new FormData();
       formData.append('file', {
         uri: imageUri,
-        type: 'image/jpeg', 
+        type: 'image/jpeg',
         name: 'product-image.jpg',
       } as any);
-      formData.append('upload_preset', 'my_preset'); 
-      
+      formData.append('upload_preset', 'my_preset');
+
       const response = await fetch(
-        'https://api.cloudinary.com/v1_1/dzjlp82fv/image/upload', 
+        'https://api.cloudinary.com/v1_1/dzjlp82fv/image/upload',
         {
           method: 'POST',
           body: formData,
@@ -146,16 +149,17 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ visible, product, o
         const manipResult = await ImageManipulator.manipulateAsync(
           imageAsset.uri,
           [
-            { resize: { width: 800 } } 
+            { resize: { width: 800 } }
           ],
-          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG } 
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
         );
 
         try {
-          const imageUrl = await uploadToCloudinary(manipResult.uri); 
+          const imageUrl = await uploadToCloudinary(manipResult.uri);
           setFormData(prev => ({ ...prev, image: imageUrl }));
           Alert.alert('Success', 'Image uploaded successfully!');
         } catch (error) {
+          // Error already handled in uploadToCloudinary
         }
       }
     } catch (error) {
@@ -165,20 +169,20 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ visible, product, o
   };
 
   const handleSave = async () => {
-    if (!formData.name.trim() || !formData.price || !formData.quantity || !formData.category) {
-      Alert.alert('Error', 'Please fill in all required fields (Name, Category, Price, Quantity).');
+    if (!formData.name.trim() || !formData.price || !formData.quantity || !formData.category || !formData.unit) {
+      Alert.alert('Error', 'Please fill in all required fields (Name, Category, Price, Quantity, Unit).');
       return;
     }
 
     setIsLoading(true);
     let finalCategory = formData.category;
-    const token = await getToken(); 
-    if (showNewCategoryInput && newCategoryName.trim() && 
+    const token = await getToken();
+    if (showNewCategoryInput && newCategoryName.trim() &&
         !categories.some(cat => cat.name.toLowerCase() === newCategoryName.trim().toLowerCase())) {
       try {
-        await addCategory(newCategoryName.trim(), token!); 
-        finalCategory = newCategoryName.trim(); 
-        Alert.alert('Category Added', `New category "${finalCategory}" added successfully!`);
+        await addCategory(newCategoryName.trim(), token!);
+        finalCategory = newCategoryName.trim();
+        // No alert here, success message will be for product save
       } catch (catError: any) {
         Alert.alert('Category Error', catError.message || 'Failed to add new category. Product will be saved with current category.');
       }
@@ -187,14 +191,14 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ visible, product, o
     try {
       const payload = {
         ...(product?._id ? { _id: product._id } : {}),
-        id: product?.id ?? '',   
+        id: product?.id ?? '',
         name: formData.name.trim(),
-        category: finalCategory, 
+        category: finalCategory,
         originalPrice: parseFloat(formData.originalPrice || formData.price),
         discountedPrice: parseFloat(formData.price),
         stock: parseInt(formData.quantity),
         image_url: formData.image,
-        unit: formData.unit,
+        unit: formData.unit as 'piece' | 'kg' | 'gram' | 'liter' | 'ml', // Ensure unit type is correct
         isActive: formData.isActive,
         isOpen: formData.isOpen,
         description: formData.description,
@@ -203,7 +207,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ visible, product, o
       await saveProduct(payload as Product, token!);
 
       Alert.alert('Success', `Product ${product ? 'updated' : 'added'} successfully!`);
-      onProductUpdated(); 
+      onProductUpdated();
       onClose();
     } catch (error: any) {
       console.error('Product save error:', error);
@@ -320,7 +324,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ visible, product, o
                     <TouchableOpacity
                       onPress={() => {
                         setShowNewCategoryInput(true);
-                        setFormData(prev => ({ ...prev, category: '' })); 
+                        setFormData(prev => ({ ...prev, category: '' }));
                       }}
                       className={`px-4 py-2 mr-2 rounded-full border ${
                         showNewCategoryInput
@@ -347,7 +351,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ visible, product, o
                   value={newCategoryName}
                   onChangeText={(text) => {
                     setNewCategoryName(text);
-                    setFormData(prev => ({ ...prev, category: text })); 
+                    setFormData(prev => ({ ...prev, category: text }));
                   }}
                   placeholder="Enter new category name"
                   className="px-3 py-3 mt-2 text-base border border-gray-200 rounded-lg"
@@ -391,15 +395,32 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ visible, product, o
               />
             </View>
 
-            {/* Unit */}
+            {/* Unit Selection Buttons */}
             <View className="mb-4">
-              <Text className="mb-2 text-base font-medium text-gray-700">Unit (e.g., pc, kg, gm)</Text>
-              <TextInput
-                value={formData.unit}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, unit: text }))}
-                placeholder="Enter unit"
-                className="px-3 py-3 text-base border border-gray-200 rounded-lg"
-              />
+              <Text className="mb-2 text-base font-medium text-gray-700">Unit *</Text>
+              <View className="flex-row flex-wrap">
+                {availableUnits.map((unitOption) => (
+                  <TouchableOpacity
+                    key={unitOption}
+                    onPress={() => setFormData(prev => ({ ...prev, unit: unitOption }))}
+                    className={`px-4 py-2 mr-2 mb-2 rounded-full border ${
+                      formData.unit === unitOption
+                        ? 'bg-blue-500 border-blue-500'
+                        : 'bg-white border-gray-300'
+                    }`}
+                  >
+                    <Text
+                      className={`font-medium text-sm ${
+                        formData.unit === unitOption
+                          ? 'text-white'
+                          : 'text-gray-700'
+                      }`}
+                    >
+                      {unitOption}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             {/* Description */}
