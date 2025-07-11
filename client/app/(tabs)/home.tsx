@@ -1,5 +1,5 @@
 import { FlatList, Text, TextInput, View, TouchableOpacity, RefreshControl } from 'react-native'
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '@clerk/clerk-expo';
 import { useProducts } from '@/hooks/useProducts';
@@ -22,25 +22,60 @@ const home = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showSortOptions, setShowSortOptions] = useState(false);
   const navigation = useNavigation<any>();
+  
+  // Use ref to store the debounce timeout
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Debounced search effect
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchQuery.trim().length > 0) {
-        // Get top 5 search results for preview
-        const filtered = products.filter(product =>
-          product.name.toLowerCase().includes(searchQuery.toLowerCase())
-        ).slice(0, 5);
-        setSearchResults(filtered);
-        setShowSearchResults(true);
-      } else {
-        setShowSearchResults(false);
-        setSearchResults([]);
-      }
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
+  // Memoize filtered search results for better performance
+  const filteredSearchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    
+    const query = searchQuery.toLowerCase();
+    return products
+      .filter(product => 
+        product.name.toLowerCase().includes(query) ||
+        product.category.toLowerCase().includes(query)
+      )
+      .slice(0, 8) // Increased from 5 to 8 for better UX
+      .sort((a, b) => {
+        // Prioritize exact matches and name starts
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        
+        if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
+        if (!aName.startsWith(query) && bName.startsWith(query)) return 1;
+        
+        return aName.localeCompare(bName);
+      });
   }, [searchQuery, products]);
+
+  // Optimized search effect with faster debounce
+  useEffect(() => {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (searchQuery.trim().length > 0) {
+      // Immediate update for better responsiveness
+      setSearchResults(filteredSearchResults);
+      setShowSearchResults(true);
+      
+      // Very short debounce for real-time feel
+      searchTimeoutRef.current = setTimeout(() => {
+        setSearchResults(filteredSearchResults);
+      }, 100); // Reduced from 300ms to 100ms
+    } else {
+      setShowSearchResults(false);
+      setSearchResults([]);
+    }
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [filteredSearchResults, searchQuery]);
 
   // Fetch products when filters change
   useEffect(() => {
@@ -52,7 +87,7 @@ const home = () => {
         sortBy: sortBy === 'newest' ? 'createdAt' : sortBy === 'price' ? 'discountedPrice' : 'name',
         sortOrder: sortOrder
       });
-    }, 500);
+    }, 300); // Keep this timeout for actual API calls
 
     return () => clearTimeout(timeoutId);
   }, [selectedCategory, activeSearchQuery, sortBy, sortOrder]);
@@ -161,7 +196,7 @@ const home = () => {
       <View className='px-4 mt-4 space-y-3'>
         {/* Search Bar */}
         <View className='relative'>
-          <View className='flex flex-row items-center w-full gap-2 px-4 py-3 border border-gray-200 rounded-full bg-gray-50'>
+          <View className='flex flex-row items-center w-full gap-3 px-4 py-3 border border-gray-200 rounded-full bg-gray-50'>
             <Feather name='search' size={20} color='#9ca3af' />
             <TextInput
               placeholder='Search for products'
@@ -170,9 +205,11 @@ const home = () => {
               value={searchQuery}
               onChangeText={setSearchQuery}
               onSubmitEditing={handleSearchSubmit}
+              autoCorrect={false}
+              autoCapitalize="none"
             />
             {searchQuery.length > 0 && (
-              <View className="flex-row items-center space-x-2">
+              <View className="flex-row items-center space-x-3">
                 <TouchableOpacity onPress={handleSearchSubmit} className="p-1">
                   <Feather name='search' size={18} color='#10B981' />
                 </TouchableOpacity>
@@ -183,24 +220,68 @@ const home = () => {
             )}
           </View>
 
-          {/* Search Results Dropdown */}
+          {/* Enhanced Search Results Dropdown */}
           {showSearchResults && searchResults.length > 0 && (
-            <View className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-              {searchResults.map((product, index) => (
-                <TouchableOpacity
-                  key={`search-${product._id}-${index}`}
-                  onPress={() => handleSearchResultSelect(product.name)}
-                  className={`px-4 py-3 flex-row items-center ${index !== searchResults.length - 1 ? 'border-b border-gray-100' : ''}`}
-                >
-                  <Feather name="search" size={16} color="#9CA3AF" />
-                  <Text className="ml-3 text-gray-800" numberOfLines={1}>
-                    {product.name}
-                  </Text>
-                  <Text className="ml-auto text-sm text-gray-500">
-                    ₹{product.discountedPrice}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <View className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-80">
+              <View className="px-4 py-3 border-b border-gray-100">
+                <Text className="text-sm font-semibold text-gray-600">
+                  {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} found
+                </Text>
+              </View>
+              <FlatList
+                data={searchResults}
+                keyExtractor={(item, index) => `search-${item._id}-${index}`}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item, index }) => (
+                  <TouchableOpacity
+                    onPress={() => handleSearchResultSelect(item.name)}
+                    className={`px-4 py-3 flex-row items-center justify-between ${
+                      index !== searchResults.length - 1 ? 'border-b border-gray-50' : ''
+                    }`}
+                    activeOpacity={0.7}
+                  >
+                    <View className="flex-1 flex-row items-center">
+                      <View className="w-8 h-8 bg-gray-100 rounded-lg items-center justify-center mr-3">
+                        <Feather name="package" size={14} color="#9CA3AF" />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-gray-800 font-medium" numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                        <Text className="text-xs text-gray-500 capitalize">
+                          {item.category}
+                        </Text>
+                      </View>
+                    </View>
+                    <View className="items-end">
+                      <Text className="text-sm font-bold text-green-600">
+                        ₹{item.discountedPrice}
+                      </Text>
+                      {item.originalPrice > item.discountedPrice && (
+                        <Text className="text-xs text-gray-400 line-through">
+                          ₹{item.originalPrice}
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )}
+                style={{ maxHeight: 240 }}
+              />
+            </View>
+          )}
+
+          {/* No Results Message */}
+          {showSearchResults && searchQuery.length > 0 && searchResults.length === 0 && (
+            <View className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+              <View className="px-4 py-6 items-center">
+                <Feather name="search" size={32} color="#9CA3AF" />
+                <Text className="text-gray-500 mt-2 text-center">
+                  No products found for "{searchQuery}"
+                </Text>
+                <Text className="text-gray-400 text-sm mt-1 text-center">
+                  Try searching with different keywords
+                </Text>
+              </View>
             </View>
           )}
         </View>
