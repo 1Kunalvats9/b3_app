@@ -258,7 +258,7 @@ router.post('/create-order', async (req, res) => {
         if (process.env.OWNER_PHONE_NUMBER) {
             try {
                 console.log('sending mssg to owner')
-                const ownerPhoneNumber = `+91${process.env.OWNER_PHONE_NUMBER}`;
+                const ownerPhoneNumber = `${process.env.OWNER_PHONE_NUMBER}`;
                 const ownerMessage = `New order #${newOrder.id} placed! Total: ₹${newOrder.total_amount.toFixed(2)}. Customer phone: ${newOrder.phone_number}. Please check.`;
                 await sendSMSProgrammatic(ownerPhoneNumber, ownerMessage);
             } catch (ownerSmsError) {

@@ -140,8 +140,6 @@ const AdminOrders = () => {
       });
 
       const data = await response.json();
-      console.log('FETCH ORDERS: Response status:', response.status);
-      console.log('FETCH ORDERS: Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.message || 'Failed to fetch orders');
@@ -350,7 +348,7 @@ const AdminOrders = () => {
         </Text>
 
         {/* Tap to view details indicator */}
-        <View className="flex-row items-center justify-center py-2 mt-2 bg-gray-50 rounded-lg">
+        <View className="flex-row items-center justify-center py-2 mt-2 rounded-lg bg-gray-50">
           <Feather name="eye" size={16} color="#6B7280" />
           <Text className="ml-2 text-sm text-gray-600">Tap to view details</Text>
         </View>
