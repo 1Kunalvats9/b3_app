@@ -208,3 +208,155 @@ router.post('/migrate-products', async (req, res) => { // Added requireAdminCler
 });
 
 export default router;
+
+// Fix duplicate keys route
+router.post('/fix-duplicate-keys', async (req, res) => {
+    try {
+        console.log('Starting duplicate keys fix...');
+        
+        // Find all products
+        const allProducts = await Products.find({});
+        
+        let fixedCount = 0;
+        let errorCount = 0;
+        
+        // Group products by their current id to find duplicates
+        const productGroups = {};
+        
+        for (const product of allProducts) {
+            if (!productGroups[product.id]) {
+                productGroups[product.id] = [];
+            }
+            productGroups[product.id].push(product);
+        }
+        
+        // Fix duplicates by assigning new UUIDs to duplicates
+        for (const [productId, products] of Object.entries(productGroups)) {
+            if (products.length > 1) {
+                console.log(`Found ${products.length} products with duplicate id: ${productId}`);
+                
+                // Keep the first one, update the rest
+                for (let i = 1; i < products.length; i++) {
+                    try {
+                        const newId = uuidv4();
+                        await Products.findByIdAndUpdate(products[i]._id, { id: newId });
+                        fixedCount++;
+                        console.log(`Updated duplicate product ${products[i]._id} with new id: ${newId}`);
+                    } catch (error) {
+                        errorCount++;
+                        console.error(`Error updating product ${products[i]._id}:`, error.message);
+                    }
+                }
+            }
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: `Duplicate keys fix complete! ${fixedCount} products updated with new unique IDs. ${errorCount} errors encountered.`,
+            stats: {
+                totalProducts: allProducts.length,
+                duplicatesFixed: fixedCount,
+                errors: errorCount
+            }
+        });
+        
+    } catch (error) {
+        console.error('Duplicate keys fix failed:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Duplicate keys fix failed',
+            error: error.message
+        });
+    }
+});
+
+// AI Categorization route
+router.post('/ai-categorize', async (req, res) => {
+    try {
+        console.log('Starting AI categorization...');
+        
+        // Find all products
+        const allProducts = await Products.find({});
+        
+        let categorizedCount = 0;
+        let looseItemsCount = 0;
+        let errorCount = 0;
+        
+        // Define category mappings based on product names
+        const categoryMappings = {
+            'snacks': ['chips', 'namkeen', 'mixture', 'sev', 'bhujia', 'popcorn', 'nuts', 'peanuts', 'cashew', 'almond', 'raisin'],
+            'biscuits': ['biscuit', 'cookie', 'cracker', 'wafer', 'rusk', 'marie', 'glucose', 'digestive'],
+            'beverages': ['tea', 'coffee', 'juice', 'drink', 'water', 'soda', 'cola', 'pepsi', 'coke', 'sprite', 'fanta', 'thumbs up', 'limca'],
+            'kitchenware': ['plate', 'bowl', 'spoon', 'fork', 'knife', 'glass', 'cup', 'mug', 'pot', 'pan', 'cooker', 'container', 'bottle'],
+            'beauty': ['soap', 'shampoo', 'cream', 'lotion', 'powder', 'oil', 'perfume', 'deodorant', 'toothpaste', 'brush', 'comb'],
+            'homeessentials': ['detergent', 'cleaner', 'tissue', 'paper', 'candle', 'incense', 'agarbatti', 'matchbox', 'lighter', 'battery']
+        };
+        
+        // Weight-based units that should be loose items
+        const weightUnits = ['kg', 'gram', 'gm', 'liter', 'litre', 'ml', 'l'];
+        
+        for (const product of allProducts) {
+            try {
+                let needsUpdate = false;
+                const updates = {};
+                
+                // Check if item should be loose (weight-based)
+                if (weightUnits.includes(product.unit.toLowerCase())) {
+                    if (!product.isOpen) {
+                        updates.isOpen = true;
+                        updates.category = 'loose items';
+                        needsUpdate = true;
+                        looseItemsCount++;
+                    }
+                } else {
+                    // Categorize based on product name if category is empty or 'Uncategorized'
+                    if (!product.category || product.category === 'Uncategorized' || product.category.trim() === '') {
+                        const productName = product.name.toLowerCase();
+                        let foundCategory = 'general';
+                        
+                        // Find matching category
+                        for (const [category, keywords] of Object.entries(categoryMappings)) {
+                            if (keywords.some(keyword => productName.includes(keyword))) {
+                                foundCategory = category;
+                                break;
+                            }
+                        }
+                        
+                        updates.category = foundCategory;
+                        needsUpdate = true;
+                        categorizedCount++;
+                    }
+                }
+                
+                // Update the product if needed
+                if (needsUpdate) {
+                    await Products.findByIdAndUpdate(product._id, updates);
+                    console.log(`Updated product "${product.name}" - Category: ${updates.category}, IsOpen: ${updates.isOpen}`);
+                }
+                
+            } catch (error) {
+                errorCount++;
+                console.error(`Error processing product ${product._id}:`, error.message);
+            }
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: `AI categorization complete! ${categorizedCount} products categorized, ${looseItemsCount} items marked as loose. ${errorCount} errors encountered.`,
+            stats: {
+                totalProducts: allProducts.length,
+                productsCategorized: categorizedCount,
+                looseItemsMarked: looseItemsCount,
+                errors: errorCount
+            }
+        });
+        
+    } catch (error) {
+        console.error('AI categorization failed:', error);
+        res.status(500).json({
+            success: false,
+            message: 'AI categorization failed',
+            error: error.message
+        });
+    }
+});

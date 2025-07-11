@@ -32,7 +32,7 @@ interface ProductQueryParams {
   search?: string;
   page: number;
   limit: number;
-  sortBy: string;
+  sortBy: 'name' | 'discountedPrice' | 'createdAt';
   sortOrder: 'asc' | 'desc';
 }
 
