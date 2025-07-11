@@ -29,7 +29,6 @@ export const useCategory = create<CategoryState>((set, get) => ({
      */
     getCategories: async (forceRefresh = false) => {
         if (get().categories.length > 0 && !forceRefresh && !get().loading) {
-            console.log("Categories already loaded, skipping fetch.");
             return;
         }
 

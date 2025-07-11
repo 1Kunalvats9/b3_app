@@ -75,7 +75,6 @@ const Profile = () => {
       try {
         const token = await getToken();
         if (token) {
-          console.log('Fetching profile with token...');
           await fetchProfile(token);
         }
       } catch (error) {

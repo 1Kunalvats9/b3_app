@@ -120,7 +120,6 @@ const AdminOrders = () => {
     try {
       const token = await getToken();
       if (!token) {
-        console.log("FETCH ORDERS: Authentication token missing.");
         throw new Error('Authentication required');
       }
 
@@ -132,7 +131,6 @@ const AdminOrders = () => {
       if (status && status !== 'all') {
         params.append('status', status);
       }
-      console.log(`FETCH ORDERS: Fetching orders from ${BACKEND_BASE_URL}/api/orders?${params.toString()}`);
       const response = await fetch(`${BACKEND_BASE_URL}/api/orders?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -158,7 +156,6 @@ const AdminOrders = () => {
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
-      console.log('FETCH ORDERS: Loading/refreshing complete.');
     }
   };
 
@@ -195,13 +192,11 @@ const AdminOrders = () => {
       }
       
       showToast('Order status updated successfully', 'success');
-      console.log('UPDATE STATUS: Status update successful.');
 
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Failed to update order status', 'error');
     } finally {
       setIsUpdatingStatus(false);
-      console.log('UPDATE STATUS: isUpdatingStatus set to false.');
     }
   };
 
@@ -214,12 +209,10 @@ const AdminOrders = () => {
       `Are you sure you want to change order #${orderToUpdate.id.substring(0, 8)} status to "${statusLabel}"?`,
       [
         { text: 'Cancel', style: 'cancel', onPress: () => {
-            console.log("HANDLE STATUS UPDATE: Alert cancelled.");
         }},
         {
           text: 'Update',
           onPress: () => {
-            console.log("HANDLE STATUS UPDATE: Alert 'Update' pressed. Calling updateOrderStatus.");
             updateOrderStatus(orderToUpdate.id, newStatus);
           },
         },
@@ -237,17 +230,14 @@ const AdminOrders = () => {
     setSelectedOrder(null);
   };
   useEffect(() => {
-    console.log(`USE EFFECT: Fetching orders for status: ${selectedStatus}`);
     fetchOrders(1, selectedStatus, true);
   }, [selectedStatus]);
 
   const onRefresh = useCallback(() => {
-    console.log(`ON REFRESH: Triggered for status: ${selectedStatus}`);
     fetchOrders(1, selectedStatus, true);
   }, [selectedStatus]);
 
   const loadMore = () => {
-    console.log(`LOAD MORE: Triggered. Current page: ${pagination.currentPage}, Total pages: ${pagination.totalPages}`);
     if (!isLoading && pagination.currentPage < pagination.totalPages) {
       fetchOrders(pagination.currentPage + 1, selectedStatus);
     }
@@ -402,7 +392,6 @@ const AdminOrders = () => {
             <TouchableOpacity
               key={status.value}
               onPress={() => {
-                console.log(`STATUS FILTER: Selected new status: ${status.value}`);
                 setSelectedStatus(status.value);
               }}
               className={`px-4 py-2 mr-3 rounded-full border ${
@@ -475,7 +464,6 @@ const AdminOrders = () => {
         message={alertConfig.message}
         buttons={alertConfig.buttons}
         onClose={() => {
-            console.log("CUSTOM ALERT: Closing alert.");
             setAlertConfig(prev => ({ ...prev, visible: false }));
         }}
       />
@@ -485,7 +473,6 @@ const AdminOrders = () => {
         message={toastConfig.message}
         type={toastConfig.type}
         onHide={() => {
-            console.log("CUSTOM TOAST: Hiding toast.");
             setToastConfig(prev => ({ ...prev, visible: false }));
         }}
       />

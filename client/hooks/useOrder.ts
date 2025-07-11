@@ -92,7 +92,6 @@ export const useOrders = create<OrderState>((set) => ({
     createOrder: async (orderData: OrderPayload, token: string): Promise<OrderResponse> => {
         set({ isLoading: true, error: null });
         try {
-            console.log('Attempting to post to URL:', `${BACKEND_BASE_URL}/api/orders/create-order`);
 
             const response: Response = await fetch(`${BACKEND_BASE_URL}/api/orders/create-order`, {
                 method: 'POST',
@@ -110,18 +109,15 @@ export const useOrders = create<OrderState>((set) => ({
                 }),
             });
 
-            console.log("Raw Response Status:", response.status);
             let responseText = '';
             try {
                 const clonedResponse = response.clone();
                 responseText = await clonedResponse.text();
-                console.log("Raw Response Text (for debugging):", responseText);
             } catch (textErr) {
                 console.error("Failed to read raw response text for debugging:", textErr);
             }
 
             const responseData = await response.json();
-            console.log("Parsed Response Data:", responseData);
 
             if (!response.ok) {
                 const errorMessage = responseData.message || `HTTP error! Status: ${response.status}. Raw response: ${responseText.substring(0, 100)}`;
@@ -130,7 +126,6 @@ export const useOrders = create<OrderState>((set) => ({
                 return { success: false, message: errorMessage, error: errorMessage };
             }
 
-            console.log("Order creation successful!");
             set({ isLoading: false });
             return { success: responseData.success, message: responseData.message, data: responseData.data };
 
@@ -153,7 +148,6 @@ export const useOrders = create<OrderState>((set) => ({
             }
 
             const url = `${BACKEND_BASE_URL}/api/orders/my-orders?${params.toString()}`;
-            console.log('Attempting to fetch orders from URL:', url);
 
             const response: Response = await fetch(url, {
                 method: 'GET',
@@ -163,8 +157,6 @@ export const useOrders = create<OrderState>((set) => ({
             });
 
             const responseData = await response.json();
-            console.log("Raw Response Status for orders:", response.status);
-            console.log("Parsed Orders Data:", responseData);
 
             if (!response.ok) {
                 const errorMessage = responseData.message || `HTTP error! Status: ${response.status}`;
@@ -177,7 +169,6 @@ export const useOrders = create<OrderState>((set) => ({
                     isOrdersLoading: false,
                     ordersError: null,
                 });
-                console.log("Orders fetched successfully!");
             }
         } catch (err: any) {
             console.error("Fetch orders failed:", err);
