@@ -345,7 +345,72 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
 
         if (updatedOrder.phone_number) {
             try {
-                const statusUpdateMessage = `Your order ${updatedOrder.id} status has been updated to: ${status.replace(/_/g, ' ').toUpperCase()}.`;
+                const getStatusMessage = (status, orderId) => {
+                    const orderShortId = orderId.substring(0, 8);
+                    
+                    switch (status) {
+                        case 'confirmed':
+                            return `✅ Order Confirmed!
+
+Your order #${orderShortId} has been confirmed and is being prepared.
+
+🕐 Estimated preparation time: 30-45 minutes
+📱 We'll notify you when it's ready for delivery.
+
+Thank you for your patience!
+- B3 Store Team`;
+
+                        case 'preparing':
+                            return `👨‍🍳 Order in Kitchen!
+
+Your order #${orderShortId} is now being prepared by our team.
+
+🕐 Almost ready! Expected completion in 15-30 minutes.
+📦 We'll update you once it's ready for delivery.
+
+- B3 Store Team`;
+
+                        case 'out_for_delivery':
+                            return `🚚 Out for Delivery!
+
+Great news! Your order #${orderShortId} is on its way to you.
+
+📍 Our delivery partner will reach you shortly.
+📱 Please keep your phone handy for delivery updates.
+
+Thank you for choosing B3 Store!`;
+
+                        case 'delivered':
+                            return `🎉 Order Delivered!
+
+Your order #${orderShortId} has been successfully delivered.
+
+We hope you enjoy your purchase! 
+⭐ Your feedback means a lot to us.
+
+Thank you for shopping with B3 Store!`;
+
+                        case 'cancelled':
+                            return `❌ Order Cancelled
+
+Your order #${orderShortId} has been cancelled.
+
+💰 If you made an online payment, refund will be processed within 3-5 business days.
+
+For any queries, please contact us.
+- B3 Store Team`;
+
+                        default:
+                            return `📋 Order Update
+
+Your order #${orderShortId} status: ${status.replace(/_/g, ' ').toUpperCase()}
+
+We'll keep you updated on any changes.
+- B3 Store Team`;
+                    }
+                };
+
+                const statusUpdateMessage = getStatusMessage(status, updatedOrder.id);
                 await sendSMSProgrammatic(updatedOrder.phone_number, statusUpdateMessage);
             } catch (smsError) {
                 console.error('Failed to send SMS for order status update:', smsError.message);

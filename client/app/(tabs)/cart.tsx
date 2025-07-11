@@ -9,6 +9,7 @@ import initiateUpiPayment from "../../utils/upiPayment";
 import SuccessModal from '@/components/SuccessModal';
 import CustomAlert from '@/components/CustomAlert';
 import CustomToast from '@/components/CustomToast';
+import PaymentConfirmationModal from '@/components/PaymentConfirmationModal';
 import { useAuth } from '@clerk/clerk-expo'; 
 
 const Cart = () => {
@@ -27,6 +28,7 @@ const Cart = () => {
   const [orderNumber, setOrderNumber] = useState('');
   const [coinsEarned, setCoinsEarned] = useState(0);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -150,20 +152,37 @@ const Cart = () => {
     setBcoinsToUse(Math.max(0, finalValue));
   };
 
-  const handleCheckout = async () => {
+  const validateOrder = () => {
     if (items.length === 0) {
       showToast('Your cart is empty. Please add items to place an order.', 'warning');
-      return;
+      return false;
     }
     if (!phoneNumber.trim()) {
       showToast('Please enter your phone number.', 'warning');
-      return;
+      return false;
     }
     if (deliveryOption === 'delivery' && !address.trim()) {
       showToast('Please enter your delivery address.', 'warning');
+      return false;
+    }
+    return true;
+  };
+
+  const handleCheckout = async () => {
+    if (!validateOrder()) {
       return;
     }
 
+    if (paymentOption === 'online') {
+      setShowPaymentModal(true);
+      return;
+    }
+
+    // For COD, proceed directly
+    await processOrder();
+  };
+
+  const processOrder = async () => {
     const orderTotal = calculateTotalWithDelivery();
     const bcoins_got = Math.floor(orderTotal / 100);
 
@@ -182,6 +201,7 @@ const Cart = () => {
       phoneNumber,
       bcoins_used: bcoinsToUse,
     };
+    
     setIsPlacingOrder(true);
 
     try {
@@ -190,14 +210,6 @@ const Cart = () => {
         throw new Error("Authentication required. Please log in.");
       }
 
-      if (paymentOption === 'online') {
-        const paymentSuccess = await initiateUpiPayment(orderTotal);
-        if (!paymentSuccess) {
-          setIsPlacingOrder(false);
-          showToast('Payment was not completed. Please try again.', 'error');
-          return;
-        }
-      }
       //@ts-ignore
       const response = await createOrder(orderData, token); // <--- PASS THE TOKEN HERE
 
@@ -231,6 +243,45 @@ const Cart = () => {
       );
     } finally {
       setIsPlacingOrder(false); // Stop loading indicator
+    }
+  };
+
+  const handlePaymentConfirmation = async () => {
+    const orderTotal = calculateTotalWithDelivery();
+    
+    try {
+      const paymentSuccess = await initiateUpiPayment(orderTotal);
+      if (!paymentSuccess) {
+        setShowPaymentModal(false);
+        showToast('Payment was cancelled or failed. Please try again.', 'error');
+        return;
+      }
+      
+      // Show confirmation dialog after UPI app returns
+      Alert.alert(
+        'Payment Confirmation',
+        'Did you complete the payment successfully in your UPI app?',
+        [
+          {
+            text: 'No, Cancel Order',
+            style: 'cancel',
+            onPress: () => {
+              setShowPaymentModal(false);
+              showToast('Order cancelled. You can try again when ready.', 'info');
+            }
+          },
+          {
+            text: 'Yes, Place Order',
+            onPress: async () => {
+              setShowPaymentModal(false);
+              await processOrder();
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      setShowPaymentModal(false);
+      showToast('Payment initiation failed. Please try again.', 'error');
     }
   };
 
@@ -556,6 +607,14 @@ const Cart = () => {
         message={toastConfig.message}
         type={toastConfig.type}
         onHide={() => setToastConfig(prev => ({ ...prev, visible: false }))}
+      />
+
+      <PaymentConfirmationModal
+        visible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onConfirmPayment={handlePaymentConfirmation}
+        orderTotal={calculateTotalWithDelivery()}
+        paymentMethod={paymentOption}
       />
     </SafeAreaView>
   );

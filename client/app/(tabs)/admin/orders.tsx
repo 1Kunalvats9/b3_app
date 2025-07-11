@@ -15,6 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import { useAuth } from '@clerk/clerk-expo';
 import CustomAlert from '@/components/CustomAlert'; // Keep if you want confirmation, adjust if you remove it.
 import CustomToast from '@/components/CustomToast';
+import OrderDetailsModal from '@/components/OrderDetailsModal';
 
 interface OrderItem {
   product_id: string;
@@ -62,7 +63,8 @@ const AdminOrders = () => {
     totalItems: 0,
   });
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  // Removed selectedOrder and showOrderModal states
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showOrderModal, setShowOrderModal] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const [alertConfig, setAlertConfig] = useState({
@@ -189,7 +191,11 @@ const AdminOrders = () => {
         order.id === orderId ? { ...order, status: newStatus as any } : order
       ));
 
-      // No selectedOrder to update anymore
+      // Update selectedOrder if it's the same order
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder(prev => prev ? { ...prev, status: newStatus as any } : null);
+      }
+      
       showToast('Order status updated successfully', 'success');
       console.log('UPDATE STATUS: Status update successful.');
 
@@ -223,6 +229,15 @@ const AdminOrders = () => {
     );
   };
 
+  const handleOrderPress = (order: Order) => {
+    setSelectedOrder(order);
+    setShowOrderModal(true);
+  };
+
+  const handleCloseOrderModal = () => {
+    setShowOrderModal(false);
+    setSelectedOrder(null);
+  };
   useEffect(() => {
     console.log(`USE EFFECT: Fetching orders for status: ${selectedStatus}`);
     fetchOrders(1, selectedStatus, true);
@@ -281,8 +296,10 @@ const AdminOrders = () => {
     }
 
     return (
-      <View
+      <TouchableOpacity
+        onPress={() => handleOrderPress(item)}
         className="p-4 mb-4 bg-white border border-gray-100 shadow-sm rounded-xl"
+        activeOpacity={0.7}
       >
         <View className="flex-row items-center justify-between mb-3">
           <Text className="text-lg font-bold text-gray-800">
@@ -332,13 +349,22 @@ const AdminOrders = () => {
           {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </Text>
 
+        {/* Tap to view details indicator */}
+        <View className="flex-row items-center justify-center py-2 mt-2 bg-gray-50 rounded-lg">
+          <Feather name="eye" size={16} color="#6B7280" />
+          <Text className="ml-2 text-sm text-gray-600">Tap to view details</Text>
+        </View>
+
         {/* Action Buttons based on status */}
         {nextStatusActions.length > 0 && (
           <View className="flex-row justify-around mt-2">
             {nextStatusActions.map((action) => (
               <TouchableOpacity
                 key={action.value}
-                onPress={() => handleStatusUpdate(item, action.value)}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleStatusUpdate(item, action.value);
+                }}
                 disabled={isUpdatingStatus}
                 className={`flex-1 px-4 py-2 mx-1 rounded-lg items-center justify-center`}
                 style={{ 
@@ -353,7 +379,7 @@ const AdminOrders = () => {
             ))}
           </View>
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -464,6 +490,14 @@ const AdminOrders = () => {
             console.log("CUSTOM TOAST: Hiding toast.");
             setToastConfig(prev => ({ ...prev, visible: false }));
         }}
+      />
+
+      <OrderDetailsModal
+        visible={showOrderModal}
+        order={selectedOrder}
+        onClose={handleCloseOrderModal}
+        onStatusUpdate={updateOrderStatus}
+        isUpdating={isUpdatingStatus}
       />
     </SafeAreaView>
   );
